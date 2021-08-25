@@ -1,6 +1,7 @@
 #For vlm need to save linear/non-linear pca,t-SNE,UMAP,  and true pseudotime/gamma, cluster labels
 
-#git clone https://github.com/pachterlab/GFCP_2021.git
+#!git clone https://github.com/pachterlab/GFCP_2021.git
+#!cd GFCP_2021
 #import vis 
 #vis.makeEmbeds()....
 
