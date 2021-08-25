@@ -6,7 +6,7 @@
 #vis.makeEmbeds()....
 
 
-makeEmbeds(vlm,embeds)
+makeEmbeds(vlm,embeds):
 '''
 Save embedding objects in embeds lists in vlm
 
@@ -19,72 +19,7 @@ Returns
 -------
 '''
 
-
-princCurvePlots(vlm)
-'''
-Plot principle curve coordinates for linear PCA embedding
-
-Parameters
-----------
-
-Returns
--------
-'''
-
-gridArrowPlots(vlm,trans,embeds,sim=False)
-'''
-Plot arrow embeddings for vlm data with defined count transformations
-
-Parameters
-----------
-sim: boolean to look for true pseudotime or cluster
-
-Returns
--------
-
-
-
-
-'''
-
-getJaccard(embed1,embed2)
-'''
-Get jaccard distance between embeddings
-
-Parameters
-----------
-
-Returns
--------
-'''
-
-
-jaccardPlots(vlm,pairs,n_neigh)
-'''
-Plot jaccard distances for neighbors between pairs of embeddings
-
-Parameters
-----------
-
-Returns
--------
-
-'''
-
-angleDevPlots(vlm,trans,n_neigh,embed)
-'''
-Plot angle deviations from transformations over varying neighbors for embedding
-
-Parameters
-----------
-
-Returns
--------
-'''
-
-
-
-getImputed(vlm)
+getImputed(vlm):
 '''
 Get gamma inference from imputed counts
 
@@ -100,8 +35,113 @@ Returns
 
 #Get gamma inference
 
+getJaccard(embed1,embed2)
+'''
+Get jaccard distance between embeddings
 
-plotPhase(vlm)
+Parameters
+----------
+
+Returns
+-------
+'''
+
+# ---------------- Plotting -------------
+
+princCurvePlots(ax,vlm):
+'''
+Plot principle curve coordinates for linear PCA embedding
+
+Parameters
+----------
+
+Returns
+-------
+'''
+
+
+
+
+
+plotEmbed(ax,vlm,embed):
+'''
+Plot given embedding (UMAP, t-SNE, etc)
+
+Parameters
+----------
+
+Returns
+-------
+'''
+
+
+
+plotGrid(ax,vlm,embed):
+'''
+Plot grid with arrows given embedding
+
+Parameters
+----------
+
+Returns
+-------
+'''
+
+
+gridArrowPlots(vlm,trans,embeds,sim=False):
+'''
+Plot arrow embeddings for vlm data with defined count transformations
+
+Parameters
+----------
+sim: boolean to look for true pseudotime or cluster and/or principal curve
+
+Returns
+-------
+
+'''
+
+
+
+plotJaccard(ax,vlm,pair):
+'''
+Single jaccard distance plot
+'''
+
+jaccardPlots(vlm,pairs,n_neigh):
+'''
+Plot jaccard distances for neighbors between pairs of embeddings
+
+Parameters
+----------
+
+Returns
+-------
+
+'''
+
+
+
+plotTheta(ax,vlm,embed,baseline):
+'''
+Single angle deviation plot
+'''
+
+angleDevPlots(vlm,trans,n_neigh,embed,baseline):
+'''
+Plot angle deviations from transformations over varying neighbors for embedding (only compared to baseline)
+
+Parameters
+----------
+
+Returns
+-------
+'''
+
+
+
+
+plotPhase(ax,vlm):
 '''
 Plot phase portrait
 
@@ -112,7 +152,7 @@ Returns
 -------
 '''
 
-plotGammaK(vlm,gene_idx)
+plotGammaK(ax,vlm,gene_idx):
 '''
 Plot gamma over k neighbors for gene at gene_idx
 
@@ -124,7 +164,7 @@ Returns
 
 '''
 
-phasePlots(vlm,n_neighs,genes)
+phasePlots(vlm,n_neighs,genes):
 '''
 Plot phase portrais with gamma distributions for various genes across n_neighs
 
