@@ -35,7 +35,7 @@ Returns
 
 #Get gamma inference
 
-getJaccard(embed1,embed2)
+getJaccard(embed1,embed2):
 '''
 Get jaccard distance between embeddings
 
