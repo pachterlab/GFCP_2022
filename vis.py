@@ -5,6 +5,10 @@
 #import vis 
 #vis.makeEmbeds()....
 
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.neighbors import NearestNeighbors
+
 
 def makeEmbeds(vlm,embeds):
 '''
