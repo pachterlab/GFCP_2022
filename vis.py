@@ -117,6 +117,12 @@ Returns
 def plotJaccard(ax,vlm,pair):
 '''
 Single jaccard distance plot
+
+Parameters
+----------
+
+Returns
+-------
 '''
 
 def jaccardPlots(vlm,pairs,n_neigh):
