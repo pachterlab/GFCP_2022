@@ -1,6 +1,7 @@
 #For vlm need to save linear/non-linear pca,t-SNE,UMAP,  and true pseudotime/gamma, cluster labels
 
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 import numpy as np
 
 from sklearn.neighbors import NearestNeighbors
@@ -18,11 +19,12 @@ vermeer_hex = ("#A65141", "#E7CDC2", "#80A0C7", "#394165", "#FCF9F0", "#B1934A",
              "#DCA258", "#100F14", "#8B9DAF", "#EEDA9D")
 vermeer = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in vermeer_hex]
 colors20 = np.vstack((plt.cm.tab20b(np.linspace(0., 1, 20))[::2], plt.cm.tab20c(np.linspace(0, 1, 20))[1::2]))
-                     
-emb_dict={"default":'pcs',"PCA":"ps", "UMAP":"us", "tSNE":"ts"}
     
+emb_dict={"default":'pcs',"PCA":"ps", "UMAP":"us", "tSNE":"ts"}
+dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4,"ab(c/d/e)":5}
+dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3],"ab(c/d/e)":[2,3,4]}
 
-def preprocess(vlm,nGene=2000, sim=False, filter=True,):
+def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True):
     if filter:
         vlm.filter_cells(bool_array=vlm.initial_Ucell_size > np.percentile(vlm.initial_Ucell_size, 0.5))
         vlm.score_detection_levels(min_expr_counts=40, min_cells_express=30)
@@ -35,11 +37,9 @@ def preprocess(vlm,nGene=2000, sim=False, filter=True,):
     vlm.pcs=vlm.pcs[:,:2]
     
     if sim:
-        ctime=vlm.ca["ctime"]
-        labels=vlm.ca["celltype"]
-        cluster_colors_dict={l:colors20[l % 20,:] for l in labels}
-        vlm.colors=[cluster_colors_dict[label] for label in labels]
-        vlm.colors=vlm.colors*(0.6+0.4*(1-ctime))[:,None]
+        if meta is None:
+            raise ValueError("If sim is true, meta cannot be None")
+        vlm.colors, vlm.ctime=getClusterTime(vlm.ca["time"],vlm.ca["celltype"], meta)
     else:
         labels = vlm.ca["Clusters"]
         cluster_colors_dict={l:colors20[l % 20,:] for l in labels}
@@ -130,6 +130,8 @@ def getJaccard(x1, x2, n_neigh=150):
         frac[i] = 1-len(inter)/len(set(embed1_neighbor[i,:]).union(embed2_neighbor[i,:]))
     return frac
 
+
+
 # def princCurveCompute(ax,vlm,meta):
 #     '''
 #     Plot principal curve coordinates for linear PCA embedding
@@ -146,7 +148,7 @@ def getJaccard(x1, x2, n_neigh=150):
 # ---------------- Plotting -------------
 
 
-def princCurvePlots(ax,vlm,meta):
+def princCurvePlots(ax,vlm,meta,color=False):
     '''
     Plot principal curve coordinates for linear PCA embedding
     
@@ -161,10 +163,7 @@ def princCurvePlots(ax,vlm,meta):
     tvec_red = np.linspace(np.min(vlm.ca['time']),np.max(vlm.ca['time']),nT)
     gamma = vlm.ra['gamma']
     beta = vlm.ra['beta']
-    dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4,"ab(c/d/e)":5}
-    dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3],"ab(c/d/e)":[2,3,4]}
     n_K = dict_nk[topo]
-    
     branches = dict_Kval[topo]
     n_branches = len(branches)
     for i in range(n_branches):
@@ -177,12 +176,21 @@ def princCurvePlots(ax,vlm,meta):
 
         # print(got)
         Y = vlm.pca.transform(np.log2(Xtheo[1,:,:]+1))
-        ax.plot(Y[:,0],Y[:,1],c='k',alpha=0.5)
+        if color:
+            labels=np.zeros_like(tvec_red,dtype=int)
+            labels[tvec_red>tau[2]]=i+2
+            Xtheo_c,ctime=getClusterTime(tvec_red,labels,meta=meta,alpha=0.2)
+            points = Y[:,:2].reshape(len(Y), 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(segments,colors=Xtheo_c)
+            lc.set_linewidth(2)
+            ax.add_collection(lc)
+        else:
+            ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
+            ax.plot(Y[:,0],Y[:,1],c='k',lw=2, alpha=0.8)
 
-    # princCurveCompute(ax,vlm,meta)
-    return
 
-def plotJaccard(ax,x1, x2, n_neigh=150):
+def plotJaccard(x1, x2, ax=None, n_neigh=150):
     '''
     Single jaccard distance plot
     
@@ -194,8 +202,8 @@ def plotJaccard(ax,x1, x2, n_neigh=150):
     -------
     '''
     frac=getJaccard(x1, x2, n_neigh)
-    ax.hist(frac, color = vermeer[3], lw=0)
-    #ax.set_title('Jaccard distances for neighbors between ' + pair[0] + ' and '  + pair[1])
+    if ax!=None:
+        ax.hist(frac, color = vermeer[3], lw=0)
     return frac
 
     
@@ -328,22 +336,6 @@ def phasePlots(vlm,genes, n_neighs,n_neighs_list,sim=False, zero_is_special=True
     return fig
 
 
-def plotEmbed(ax,vlm,embed):
-    '''
-    Plot given embedding (UMAP, t-SNE, etc)
-    
-    Parameters
-    ----------
-    c: colors
-
-    Returns
-    -------
-    '''
-    x=getattr(vlm, embed)
-    ax.scatter(x[:,0],x[:,1],marker=".",c=vlm.colors, alpha=0.5,edgecolors="none")
-    return
-
-
 def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     '''
     Plot grid with arrows given embedding
@@ -356,8 +348,8 @@ def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     '''
     x=getattr(vlm, gridx)
     v=getattr(vlm, gridv)
-    masks=vlm.total_p_mass>0.01
-    ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, alpha=0.8, color=c)
+    masks=vlm.total_p_mass>0.1
+    ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, color=c)
     return
 
 def linear_embed(vlm):
@@ -378,8 +370,16 @@ def linear_embed(vlm):
     v=vlm.pca.transform(np.log2(vlm.S_sz_t.T+1))[:,:2]-vlm.pcs[:,:2]
     return v
 
+def SimArrowPlots(vlm,meta=None,ax=None,quiver_scale=5):
+    if ax==None:
+        fig, ax = plt.subplots(2,2,figsize=(12,8))
+        
+    plotEmbed(ax,vlm,emb)
+        
+    
 
-def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quiver_scale=5):
+
+def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quiver_scale=5,title=True):
     '''
     Plot arrow embeddings for vlm data with defined count transformations
     
@@ -398,16 +398,8 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
     if ax is None:
         fig,ax=plt.subplots(1,1)
         
-    plotEmbed(ax,vlm,emb)
+    plotEmbed(ax,vlm,emb,sim=sim)
     
-    # plot baseline arrows or curves
-    if embed=="PCA":
-        if sim:
-            princCurvePlots(ax,vlm,meta)
-        else:
-            v=linear_embed(vlm)
-            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.5, linewidth=6.5, scale=5, label="baseline")
-
     for i,trans in enumerate(Trans):
         vlm.estimate_transition_prob(hidim="Sx_sz", embed=emb, transform=trans,
                                 n_neighbors=150, knn_random=False, sampled_fraction=1)
@@ -419,15 +411,24 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
         vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
         vlm.calculate_grid_arrows(smooth=0.5, steps=(10, 10), n_neighbors=100)
 
-        plotGrid(ax,vlm,"flow_grid","flow",trans, scale=quiver_scale, c=vermeer[-2-i])
-        
+        plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10])
+    
+    # plot baseline arrows or curves
+    if embed=="PCA":
+        if sim:
+            princCurvePlots(ax,vlm,meta,color=False)
+        else:
+            v=linear_embed(vlm)
+            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.5, linewidth=3, scale=5, label="baseline")
+   
     if legend:
-        ax.legend()
+        ax.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    if title:
+        ax.set_title(embed)
     if ax is None:
         return fig
     else:
         return ax
-
 
 
 def plotTheta(ax, X, Y, k):
@@ -461,7 +462,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
  
     for j, k in enumerate(n_neighs):
         for i,trans in enumerate(Trans):
-            vlm.estimate_transition_prob(hidim="S_sz", embed="pcs", transform=trans,
+            vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
                                           n_neighbors=k, knn_random=False, sampled_fraction=1)
             if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
                 warnings.warn("Nan values in corrcoef, setting them to 0")
@@ -509,6 +510,7 @@ def eval_x_interval(k_,dt,beta,gamma,x0):
         +gamma*x0[0]*(np.exp((gamma-1)*dt)-1)) \
         /gamma/(gamma-1)])
     return x
+
 def eval_x(k,tau,t,beta,gamma):
     '''
     Evaluates a single gene's average expression at a time point t.
@@ -565,7 +567,7 @@ def get_cell_spec_K(K,cell_type):
     k = [K[0],K[1],K[cell_type]]
     return np.array(k)
 
-def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="aba"):
+def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="ab(c/d/e)", seed=42):
     '''
     Simulates a gene expression given a constitutive model with transient
     dynamics. A vector of observation times is initializated; then, the
@@ -598,6 +600,7 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="aba
     b_true: ground truth splicing rates (all 1)
     '''
     #define occupation measure for sampling: df = dt/T
+    np.random.seed(seed)
     tvec = np.random.rand(nCells)*T
     #initialize arrays for simulations
     X = np.zeros((2,nCells,nGenes))
@@ -605,7 +608,6 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="aba
     b_true = np.zeros(nGenes)
     cell_types = np.zeros(nCells,dtype=int)
 
-    tau = np.array([0,8,13])
     cell_types[tvec<tau[1]] = 0 #a
     cell_types[(tvec>tau[1]) & (tvec<tau[2])] = 1
     if topo == "aba":
@@ -674,27 +676,20 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="aba
                 FLAG=False
     return X,cell_types,tvec,K,g_true,b_true
 
-def sim_export(simdata, name="simdata"):
+def sim_export(simdata, meta, name="simdata"):
     X,cell_types,tvec,K,g_true,b_true = simdata
+    nCells,nGenes,T,tau,topo = meta
     adata=ad.AnnData(np.sum(X,axis=0))
     adata.layers["spliced"] = X[1,:,:]
     adata.layers["unspliced"] = X[0,:,:]
-    adata.layers["ambiguous"]=np.zeros((nCells,nGenes))
+    adata.layers["ambiguous"]=np.zeros_like(X[1,:,:])
     # br = np.zeros(nCells,dtype=bool)
     # br[branch_cells]=True
     adata.obs["time"]=tvec
-    ## cluster time
-    ctime=tvec.copy()
-    ctime[cell_types==0]=ctime[cell_types==0]/tau[1]
-    ctime[cell_types==1]=(ctime[cell_types==1]-tau[1])/(tau[2]-tau[1])
-    ctime[cell_types==2]=(ctime[cell_types==2]-tau[2])/(tau[3]-tau[2])
-    ctime[cell_types==3]=(ctime[cell_types==3]-tau[2])/(tau[3]-tau[2])
-    ctime[cell_types==4]=(ctime[cell_types==4]-tau[2])/(tau[3]-tau[2])
-    adata.obs["ctime"]=ctime
     adata.obs["celltype"]=cell_types
     adata.var["gamma"]=g_true
     adata.var["beta"]=b_true
-    adata.var["Gene"]=np.asarray([str(i) for i in range(nGenes)])
+    adata.var["Gene"]=np.asarray([str(i) for i in range(len(g_true))])
     # adata.uns["K"]=K
     n_K = K.shape[1]
     for i in range(n_K):
@@ -718,31 +713,43 @@ def simValidPlots(vlm,tau,geneind=0,knn_k=50):
     n_comps = np.where(np.diff(np.diff(np.cumsum(vlm.pca.explained_variance_ratio_))>0.005))[0][0]
     vlm.knn_imputation(n_pca_dims=n_comps,k=knn_k, balanced=True, b_sight=np.minimum(knn_k*8, vlm.S.shape[1]-1), b_maxl=np.minimum(knn_k*4, vlm.S.shape[1]-1))
 
-
-
-    fig1, ax1 = plt.subplots(1, 3,figsize=(3*6,4))
-    vlm.fit_gammas(use_imputed_data=False, use_size_norm=False, weighted=False)
-    plotGamma(ax1[0],vlm)
-    vlm.fit_gammas(use_imputed_data=False, use_size_norm=True, weighted=True, weights="maxmin_diag")
-    plotGamma(ax1[1],vlm)
-    vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
-    plotGamma(ax1[2],vlm)
-
+    fig=plt.figure(figsize=(18,11))
 
     Xtheo = getGroundTruthAvg(vlm,tau)
 
-    fig2, ax2 = plt.subplots(1, 3,figsize=(3*6,4))
+    ax1=[]
+    for i in range(4):
+        ax1.append(plt.subplot2grid((11, 12), (4, i*3), rowspan=3, colspan=3))
+    selection_names = ['U','S']
+
+    for i in range(2):
+        plotImpMeanPerformance(ax1[i],vlm,Xtheo,selection_names[i])
+        plotImpVarPerformance(ax1[2+i],vlm,Xtheo,selection_names[i])
+    
+    ax2=[]
+    for i in range(3):
+        ax2.append(plt.subplot2grid((11, 12), (0, i*4), rowspan=4, colspan=4))
     selection_names = ['raw','size_norm','imputed']
     for i in range(3):
         plotSimCounts(ax2[i],vlm,geneind,selection_names[i])
         plotGroundTruthCounts(ax2[i],vlm,geneind,tau)
+        
+    ax3=[]
+    for i in range(3):
+        ax3.append(plt.subplot2grid((11, 12), (7, i*4), rowspan=4, colspan=4))
+    ax3[0].set_ylabel("Imputed gamma")
+    ax3[1].set_ylabel("True gamma")
+    vlm.fit_gammas(use_imputed_data=False, use_size_norm=False, weighted=False)
+    plotGamma(ax3[0],vlm)
+    vlm.fit_gammas(use_imputed_data=False, use_size_norm=True, weighted=True, weights="maxmin_diag")
+    plotGamma(ax3[1],vlm)
+    vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
+    plotGamma(ax3[2],vlm)
     
-    fig3, ax3 = plt.subplots(1, 2,figsize=(2*6,4))
-    selection_names = ['U','S']
-    for i in range(2):
-        plotImpPerformance(ax3[i],vlm,Xtheo,selection_names[i])
+    return fig
 
-def plotImpPerformance(ax,vlm,Xtheo,selection):
+
+def plotImpMeanPerformance(ax,vlm,Xtheo,selection):
     if selection is 'U':
         field_str = 'Ux'
         i = 0
@@ -758,6 +765,24 @@ def plotImpPerformance(ax,vlm,Xtheo,selection):
     ax.plot(xl,xl/10,'b-')
     ax.set_xlabel(selection + ' ground truth mean')
     ax.set_ylabel(selection + ' imputed mean')
+    
+def plotImpVarPerformance(ax,vlm,Xtheo,selection):
+    if selection is 'U':
+        field_str = 'Ux_var'
+        i = 0
+    elif selection is 'S':
+        field_str = 'Sx_var'
+        i = 1
+    ground_truth = Xtheo[i].T.flatten()
+    imputed_value = getattr(vlm,field_str).flatten()
+    ax.loglog(ground_truth,imputed_value,'k.')
+    xl = np.linspace(min(ground_truth),max(ground_truth))
+    ax.plot(xl,xl,'r-',linewidth=2)
+    ax.plot(xl,xl*10,'b-')
+    ax.plot(xl,xl/10,'b-')
+    ax.set_xlabel(selection + ' ground truth var')
+    ax.set_ylabel(selection + ' imputed var')
+
 
 
 def getGroundTruthAvg(vlm,tau):
@@ -837,3 +862,37 @@ def plotGroundTruthCounts(ax,vlm,geneind,tau):
     # x0 = [K[geneind,0],K[geneind,0]/g_true[geneind]]
     # plt.plot(tvec,[eval_x(K[geneind,:],tau,t,1,g_true[geneind],x0)[0] for t in tvec],'k.')
     # plt.plot(tvec,[eval_x(K[geneind,:],tau,t,1,g_true[geneind],x0)[1] for t in tvec],'r.')
+
+
+def getClusterTime(tvec,labels,meta,alpha=1):
+    nCells,nGenes,T,ori_tau,topo = meta
+    tau=ori_tau.copy()
+    tau.append(T)
+    ctime=tvec.copy()
+    for i in range(len(tau)-1):
+        ctime[(tvec>=tau[i]) & (tvec<tau[i+1])]=(ctime[(tvec>=tau[i]) & (tvec<tau[i+1])]-tau[i])/(tau[i+1]-tau[i])
+    cluster_colors_dict={l:colors20[l % 20,:] for l in labels}
+    colors=np.array([cluster_colors_dict[label] for label in labels])
+    #colors[:,0]=colors[:,0]*((1-alpha)+alpha*(1-ctime))
+    return colors, ctime
+
+
+def plotEmbed(ax,vlm,embed,sim):
+    '''
+    Plot given embedding (UMAP, t-SNE, etc)
+    
+    Parameters
+    ----------
+    c: colors
+
+    Returns
+    -------
+    '''
+    x=getattr(vlm, embed)
+    if sim:
+        ax.scatter(x[:,0],x[:,1],marker=".", s=10+100*vlm.ctime, c=vlm.colors, alpha=0.8, edgecolors="none")
+    else:
+        ax.scatter(x[:,0],x[:,1],marker=".", c=vlm.colors, alpha=0.8, edgecolors="none")
+    return
+
+
