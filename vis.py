@@ -2,19 +2,24 @@
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 import numpy as np
+import seaborn as sn
+import pandas as pd
 
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from sklearn.manifold import TSNE
 import umap
+import math
 
 import velocyto as vcy
 import anndata as ad
 import warnings
 
 # parameter
+plt.rcParams.update({'font.size': 22})
 vermeer_hex = ("#A65141", "#E7CDC2", "#80A0C7", "#394165", "#FCF9F0", "#B1934A",
              "#DCA258", "#100F14", "#8B9DAF", "#EEDA9D")
 vermeer = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in vermeer_hex]
@@ -106,236 +111,6 @@ def getImputed(vlm, knn_k=50):
     return
 
 
-def getNeighbors(embed, n_neigh = 150, p=1):
-    """Get indices of nearest neighbors in embedding (shape n_samples,n_features)"""
-    nbrs = NearestNeighbors(n_neighbors=n_neigh, p=p).fit(embed)
-    distances, indices = nbrs.kneighbors(embed)
-    return indices
-
-def getJaccard(x1, x2, n_neigh=150):
-    '''
-    Get jaccard distance between embeddings
-    
-    Parameters
-    ----------
-    
-    Returns
-    -------
-    '''
-    embed1_neighbor = getNeighbors(x1,n_neigh)
-    embed2_neighbor = getNeighbors(x2,n_neigh)
-    frac = [0]*embed1_neighbor.shape[0]
-    for i in range(embed1_neighbor.shape[0]):
-        inter = set(embed1_neighbor[i,:]).intersection(embed2_neighbor[i,:])
-        frac[i] = 1-len(inter)/len(set(embed1_neighbor[i,:]).union(embed2_neighbor[i,:]))
-    return frac
-
-
-
-# def princCurveCompute(ax,vlm,meta):
-#     '''
-#     Plot principal curve coordinates for linear PCA embedding
-    
-#     Parameters
-#     ----------
-    
-#     Returns
-#     -------
-#     '''
-#     return
-
-
-# ---------------- Plotting -------------
-
-
-def princCurvePlots(ax,vlm,meta,color=False):
-    '''
-    Plot principal curve coordinates for linear PCA embedding
-    
-    Parameters
-    ----------
-    
-    Returns
-    -------
-    '''
-    nCells,nGenes,T,tau,topo = meta
-    nT = 200
-    tvec_red = np.linspace(np.min(vlm.ca['time']),np.max(vlm.ca['time']),nT)
-    gamma = vlm.ra['gamma']
-    beta = vlm.ra['beta']
-    n_K = dict_nk[topo]
-    branches = dict_Kval[topo]
-    n_branches = len(branches)
-    for i in range(n_branches):
-        K = np.vstack([vlm.ra['k'+str(i)] for i in range(n_K)]).T
-        Xtheo = [[eval_x(get_cell_spec_K(K[j],branches[i]),tau,t,beta[j],gamma[j]) for t in tvec_red] for j in range(nGenes)]
-        Xtheo = np.asarray(Xtheo)
-        Xtheo[np.isnan(Xtheo)]=0
-        Xtheo[np.isinf(Xtheo)]=0
-        Xtheo = np.swapaxes(Xtheo,0,2)
-
-        # print(got)
-        Y = vlm.pca.transform(np.log2(Xtheo[1,:,:]+1))
-        if color:
-            labels=np.zeros_like(tvec_red,dtype=int)
-            labels[tvec_red>tau[2]]=i+2
-            Xtheo_c,ctime=getClusterTime(tvec_red,labels,meta=meta,alpha=0.2)
-            points = Y[:,:2].reshape(len(Y), 1, 2)
-            segments = np.concatenate([points[:-1], points[1:]], axis=1)
-            lc = LineCollection(segments,colors=Xtheo_c)
-            lc.set_linewidth(2)
-            ax.add_collection(lc)
-        else:
-            ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
-            ax.plot(Y[:,0],Y[:,1],c='k',lw=2, alpha=0.8)
-
-
-def plotJaccard(x1, x2, ax=None, n_neigh=150):
-    '''
-    Single jaccard distance plot
-    
-    Parameters
-    ----------
-    ax: plot axis
-    vlm: velocyto
-    Returns
-    -------
-    '''
-    frac=getJaccard(x1, x2, n_neigh)
-    if ax!=None:
-        ax.hist(frac, color = vermeer[3], lw=0)
-    return frac
-
-    
-    
-def plotPhase(ax, vlm, gene_idx):
-    '''
-    Plot phase portrait
-    
-    Parameters
-    ----------
-    
-    Returns
-    -------
-    '''
-    y=vlm.Ux[gene_idx,:]
-    x=vlm.Sx[gene_idx,:]
-    k=vlm.gammas[gene_idx]
-    b=vlm.q[gene_idx]
-    
-    ax.scatter(x, y, c=vlm.colors)
-    ax.set_xlabel('spliced')
-    ax.set_ylabel('unspliced')
-    x_=np.array([np.amin(x), np.amax(x)])
-    ax.plot(x_, x_*k+b, color=vermeer[0],linewidth=4)
-    return
-
-def plotGammaK(ax, vlm, gene_idx, n_neigh, gamma, q, sim=False):
-    '''
-    Plot gamma over k neighbors for gene at gene_idx
-    
-    Parameters
-    ----------
-    
-    Returns
-    -------
-    
-    '''
-    ax.plot(n_neigh, gamma, color=vermeer[0],label="gamma",lw=6)
-    if sim:
-        ax.plot(n_neigh,vlm.ra["gamma"][gene_idx]/vlm.ra["beta"][gene_idx]*np.ones(len(n_neigh)),'r-',label="true gamma")
-    ax.set_xlabel("k neighbors")
-    ax.set_ylabel("gamma")
-    ax.yaxis.label.set_color(vermeer[0])
-    frac=vlm.Ux[gene_idx,:,None] - vlm.Sx[gene_idx,:,None]*gamma[None,:] - q[None,:]
-    frac=np.sum(frac>0,axis=0)/np.shape(frac)[0]
-    ax2=ax.twinx()
-    ax2.plot(n_neigh, frac, color=vermeer[3],label="frac",lw=6)
-    ax2.set_ylabel("perc cells unregulated")
-    ax2.yaxis.label.set_color(vermeer[3])
-    ax2.set_ylim([0,1])
-    return
-
-def phasePlots(vlm,genes, n_neighs,n_neighs_list,sim=False, zero_is_special=True):
-    '''
-    Plot phase portrais with gamma distributions for various genes across n_neighs
-    
-    Parameters
-    ----------
-    
-    Returns
-    -------
-    '''
-    if type(genes) is list or type(genes) is tuple: #looking at SPECIFIC genes enumerated in an iterable
-        m = len(genes)
-    else: #just some random genes
-        m = genes
-        genes = np.random.choice(vlm.ra['Gene'],m,replace=False)
-    
-    
-    n = len(n_neighs)
-    n2 = len(n_neighs_list)
-    gammas = np.zeros((m,n2))
-    q = np.zeros((m,n2))
-    
-    fig, ax = plt.subplots(m,n+1,figsize=((n+1)*6,m*4))
-    
-    # generate phase plots
-    for j, knn_k in enumerate(n_neighs):
-        if knn_k>0:
-            vlm.knn_imputation(k=knn_k)
-            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
-   
-        elif zero_is_special:
-            vlm.Sx=vlm.S
-            vlm.Ux=vlm.U
-            vlm.gammas=np.zeros(len(vlm.S))
-            vlm.q=np.zeros(len(vlm.S))
-            ## vlm fit_gammas is not working!!! use sklearn linear regression instead
-            for i, gene in enumerate(genes):
-                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                reg = LinearRegression().fit(vlm.S[gene_idx,:].reshape(-1,1), vlm.U[gene_idx,:].reshape(-1,1))
-                vlm.gammas[gene_idx]=reg.coef_
-                vlm.q[gene_idx]=reg.intercept_
-        else:
-            vlm.Sx=vlm.S
-            vlm.Ux=vlm.U
-            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
- 
-            
-                
-        # Plot phase plots
-        for i, gene in enumerate(genes):
-            gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-            plotPhase(ax[i][j], vlm, gene_idx)
-
-        
-            
-    for j, k in enumerate(n_neighs_list):
-        knn_k=int(k)
-        if knn_k>0:
-            vlm.knn_imputation(k=knn_k)
-            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
-            for i, gene in enumerate(genes):
-                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                gammas[i,j]=vlm.gammas[gene_idx]
-                q[i,j]=vlm.q[gene_idx]
-        else:
-            vlm.Sx=vlm.S
-            vlm.Ux=vlm.U
-            ## vlm fit_gammas is not working!!! use sklearn linear regression instead
-            for i, gene in enumerate(genes):
-                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                reg = LinearRegression().fit(vlm.S[gene_idx,:].reshape(-1,1), vlm.U[gene_idx,:].reshape(-1,1))
-                gammas[i,j]=reg.coef_
-                q[i,j]=reg.intercept_
-            
-    for i, gene in enumerate(genes):
-        gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-        plotGammaK(ax[i][n], vlm, gene_idx, n_neighs_list, gammas[i,:], q[i,:], sim=sim)
-    return fig
-
-
 def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     '''
     Plot grid with arrows given embedding
@@ -419,64 +194,23 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
             princCurvePlots(ax,vlm,meta,color=False)
         else:
             v=linear_embed(vlm)
-            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.5, linewidth=3, scale=5, label="baseline")
+            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.8, linewidth=3, scale=5, label="baseline")
    
     if legend:
-        ax.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        ax.legend(loc='upper right') #bbox_to_anchor=(1.05, 1.0),
     if title:
         ax.set_title(embed)
+        
+    ax.axis('off')
+    
     if ax is None:
         return fig
     else:
         return ax
 
 
-def plotTheta(ax, X, Y, k):
-    '''
-    Single angle deviation plot
-    '''
-    angle1=np.arctan2(X[:,1],X[:,0])
-    angle2=np.arctan2(Y[:,1],Y[:,0])
-    angle=angle2-angle1
-    angle[angle>np.pi]=angle[angle>np.pi]-2*np.pi
-    angle[angle<-np.pi]=angle[angle<-np.pi]+2*np.pi
-    ax.hist(angle,density=True,label=str(k),alpha=0.2)
-    ax.set_xlabel("angle")
-    ax.set_ylabel("density")
-    return
 
-def angleDevPlots(vlm,Trans,n_neighs):
-    '''
-    Plot angle deviations from transformations over varying neighbors for embedding (only compared to baseline)
     
-    Parameters
-    ----------
-
-    Returns
-    -------
-    '''
-    if not hasattr(vlm,"delta_S"):
-        getImputed(vlm, knn_k=50)
-    fig, ax= plt.subplots(1, len(Trans),figsize=(len(Trans)*6,4))
-    baseline_arrow=linear_embed(vlm)
- 
-    for j, k in enumerate(n_neighs):
-        for i,trans in enumerate(Trans):
-            vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
-                                          n_neighbors=k, knn_random=False, sampled_fraction=1)
-            if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
-                warnings.warn("Nan values in corrcoef, setting them to 0")
-                vlm.corrcoef[np.isnan(vlm.corrcoef)]=0
-                
-            vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
-            
-            plotTheta(ax[i], baseline_arrow, vlm.delta_embedding, k)
-            
-    plt.legend()
-        
-    return fig
-    
-
 # ---------------- Simulation -------------
 
 def eval_x_interval(k_,dt,beta,gamma,x0):
@@ -895,4 +629,317 @@ def plotEmbed(ax,vlm,embed,sim):
         ax.scatter(x[:,0],x[:,1],marker=".", c=vlm.colors, alpha=0.8, edgecolors="none")
     return
 
+
+
+    
+def plotPhase(ax, vlm, gene_idx, jitter=False):
+    '''
+    Plot phase portrait
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    '''
+    y=vlm.Ux[gene_idx,:]
+    x=vlm.Sx[gene_idx,:]
+    k=vlm.gammas[gene_idx]
+    b=vlm.q[gene_idx]
+    
+    x_=np.array([np.amin(x), np.amax(x)])
+    ax.plot(x_, x_*k+b+np.random.normal(0,0.1,size=x_.shape), color=vermeer[0], linewidth=4)
+    
+    if jitter:
+        ax.scatter(x+np.random.normal(0,0.1,size=x.shape), y+np.random.normal(0,0.1,size=x.shape), c=vlm.colors, s=1)
+    else:
+        ax.scatter(x, y, c=vlm.colors, s=1)
+    return
+
+
+def plotGammaK(ax, vlm, gene_idx, n_neigh, gamma, q, sim=False):
+    '''
+    Plot gamma over k neighbors for gene at gene_idx
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    
+    '''
+    ax.plot(n_neigh, gamma, color=vermeer[0],label="gamma",lw=6)
+    if sim:
+        ax.plot(n_neigh,vlm.ra["gamma"][gene_idx]/vlm.ra["beta"][gene_idx]*np.ones(len(n_neigh)),'r-',label="true gamma")
+    ax.set_ylabel("gamma")
+    ax.yaxis.label.set_color(vermeer[0])
+    frac=vlm.Ux[gene_idx,:,None] - vlm.Sx[gene_idx,:,None]*gamma[None,:] - q[None,:]
+    frac=np.sum(frac>0,axis=0)/np.shape(frac)[0]
+    ax2=ax.twinx()
+    ax2.plot(n_neigh, frac, color=vermeer[3],label="frac",lw=6)
+    ax2.set_ylabel("perc cells unregulated")
+    ax2.yaxis.label.set_color(vermeer[3])
+    ax2.set_ylim([0,1])
+    return
+
+def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=True):
+    '''
+    Plot phase portrais with gamma distributions for various genes across n_neighs
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    '''
+    if type(genes) is list or type(genes) is tuple: #looking at SPECIFIC genes enumerated in an iterable
+        m = len(genes)
+    else: #just some random genes
+        m = genes
+        genes = np.random.choice(vlm.ra['Gene'],m,replace=False)
+    
+    
+    n = len(n_neighs)
+    n2 = len(n_neighs_list)
+    gammas = np.zeros((m,n2))
+    q = np.zeros((m,n2))
+    
+    fig, ax = plt.subplots(m,n+1,figsize=((n+1)*6,m*4))
+    
+    # generate phase plots
+    for j, knn_k in enumerate(n_neighs):
+        if knn_k>0:
+            vlm.knn_imputation(k=knn_k)
+            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
+            
+            # Plot phase plots
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                plotPhase(ax[i][j], vlm, gene_idx)
+   
+        elif zero_is_special:
+            vlm.Sx=vlm.S
+            vlm.Ux=vlm.U
+            vlm.gammas=np.zeros(len(vlm.S))
+            vlm.q=np.zeros(len(vlm.S))
+            ## vlm fit_gammas is not working!!! use sklearn linear regression instead
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                reg = LinearRegression().fit(vlm.S[gene_idx,:].reshape(-1,1), vlm.U[gene_idx,:].reshape(-1,1))
+                vlm.gammas[gene_idx]=reg.coef_
+                vlm.q[gene_idx]=reg.intercept_
+                
+            # Plot phase plots
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                plotPhase(ax[i][j], vlm, gene_idx, jitter=True)
+        else:
+            vlm.Sx=vlm.S
+            vlm.Ux=vlm.U
+            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
+             
+            # Plot phase plots
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                plotPhase(ax[i][j], vlm, gene_idx, jitter=True)
+
+    for j, k in enumerate(n_neighs_list):
+        knn_k=int(k)
+        if knn_k>0:
+            vlm.knn_imputation(k=knn_k)
+            vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                gammas[i,j]=vlm.gammas[gene_idx]
+                q[i,j]=vlm.q[gene_idx]
+        else:
+            vlm.Sx=vlm.S
+            vlm.Ux=vlm.U
+            ## vlm fit_gammas is not working!!! use sklearn linear regression instead
+            for i, gene in enumerate(genes):
+                gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+                reg = LinearRegression().fit(vlm.S[gene_idx,:].reshape(-1,1), vlm.U[gene_idx,:].reshape(-1,1))
+                gammas[i,j]=reg.coef_
+                q[i,j]=reg.intercept_
+            
+    for i, gene in enumerate(genes):
+        gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
+        plotGammaK(ax[i][n], vlm, gene_idx, n_neighs_list, gammas[i,:], q[i,:], sim=sim)
+    ax[m-1][n].set_xlabel("k neighbors")
+    
+    for i in range(m-1):
+        for j in range(n):
+            ax[i][j].axes.xaxis.set_ticklabels([])
+        
+    for i in range(m):
+        for j in range(1,n):
+            ax[i][j].axes.yaxis.set_ticklabels([])
+            
+    for i in range(m):
+        ax[i,0].set_ylabel("unspliced")
+    for j in range(n):
+        ax[m-1,j].set_xlabel("spliced")
+
+    fig.tight_layout(pad=0.4, w_pad=0.4, h_pad=0.4)
+    
+    return fig
+
+
+
+def getNeighbors(embed, n_neigh = 150, p=1):
+    """Get indices of nearest neighbors in embedding (shape n_samples,n_features)"""
+    nbrs = NearestNeighbors(n_neighbors=n_neigh, p=p).fit(embed)
+    distances, indices = nbrs.kneighbors(embed)
+    return indices
+
+def getJaccard(x1, x2, n_neigh=150):
+    '''
+    Get jaccard distance between embeddings
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    '''
+    embed1_neighbor = getNeighbors(x1,n_neigh)
+    embed2_neighbor = getNeighbors(x2,n_neigh)
+    frac = [0]*embed1_neighbor.shape[0]
+    for i in range(embed1_neighbor.shape[0]):
+        inter = set(embed1_neighbor[i,:]).intersection(embed2_neighbor[i,:])
+        frac[i] = 1-len(inter)/len(set(embed1_neighbor[i,:]).union(embed2_neighbor[i,:]))
+    return frac
+
+
+
+# def princCurveCompute(ax,vlm,meta):
+#     '''
+#     Plot principal curve coordinates for linear PCA embedding
+    
+#     Parameters
+#     ----------
+    
+#     Returns
+#     -------
+#     '''
+#     return
+
+
+# ---------------- Plotting -------------
+
+
+def princCurvePlots(ax,vlm,meta,color=False):
+    '''
+    Plot principal curve coordinates for linear PCA embedding
+    
+    Parameters
+    ----------
+    
+    Returns
+    -------
+    '''
+    nCells,nGenes,T,tau,topo = meta
+    nT = 200
+    tvec_red = np.linspace(np.min(vlm.ca['time']),np.max(vlm.ca['time']),nT)
+    gamma = vlm.ra['gamma']
+    beta = vlm.ra['beta']
+    n_K = dict_nk[topo]
+    branches = dict_Kval[topo]
+    n_branches = len(branches)
+    for i in range(n_branches):
+        K = np.vstack([vlm.ra['k'+str(i)] for i in range(n_K)]).T
+        Xtheo = [[eval_x(get_cell_spec_K(K[j],branches[i]),tau,t,beta[j],gamma[j]) for t in tvec_red] for j in range(nGenes)]
+        Xtheo = np.asarray(Xtheo)
+        Xtheo[np.isnan(Xtheo)]=0
+        Xtheo[np.isinf(Xtheo)]=0
+        Xtheo = np.swapaxes(Xtheo,0,2)
+
+        # print(got)
+        Y = vlm.pca.transform(np.log2(Xtheo[1,:,:]+1))
+        if color:
+            labels=np.zeros_like(tvec_red,dtype=int)
+            labels[tvec_red>tau[2]]=i+2
+            Xtheo_c,ctime=getClusterTime(tvec_red,labels,meta=meta,alpha=0.2)
+            points = Y[:,:2].reshape(len(Y), 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(segments,colors=Xtheo_c)
+            lc.set_linewidth(2)
+            ax.add_collection(lc)
+        else:
+            ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
+            ax.plot(Y[:,0],Y[:,1],c='k',lw=2, alpha=0.8)
+
+
+def plotJaccard(x1, x2, ax=None, n_neigh=150, c=vermeer[3]):
+    '''
+    Single jaccard distance plot
+    
+    Parameters
+    ----------
+    ax: plot axis
+    vlm: velocyto
+    Returns
+    -------
+    '''
+    frac=getJaccard(x1, x2, n_neigh)
+    if ax!=None:
+        ax.hist(frac, color=c, lw=0, density=True, bins=np.arange(0,1.02,0.02))
+    return frac
+
+def plotTheta(ax, X, Y, k):
+    '''
+    Single angle deviation plot
+    '''
+    angle1=np.arctan2(X[:,1],X[:,0])
+    angle2=np.arctan2(Y[:,1],Y[:,0])
+    angle=angle2-angle1
+    angle=angle %(2*math.pi)
+    angle[angle>np.pi]=angle[angle>np.pi]-2*np.pi
+    sn.kdeplot(data=angle,shade=True,ax=ax,label=str(k))
+    #ax.hist(angle,density=True,label=str(k),alpha=0.2)
+    ax.set_xlabel("angle")
+    ax.xaxis.set_major_formatter(FuncFormatter(
+       lambda val,pos: '{:.0g}$\pi$'.format(val/np.pi) if val !=0 else '0'
+    ))
+    ax.xaxis.set_major_locator(MultipleLocator(base=np.pi))
+    ax.set_xlim([-np.pi, np.pi])
+    return np.sum(np.abs(angle)>np.pi/2)/len(angle)
+
+
+def angleDevPlots(vlm,Trans,n_neighs):
+    '''
+    Plot angle deviations from transformations over varying neighbors for embedding (only compared to baseline)
+    
+    Parameters
+    ----------
+
+    Returns
+    -------
+    '''
+    if not hasattr(vlm,"delta_S"):
+        getImputed(vlm, knn_k=50)
+    fig, ax= plt.subplots(1, len(Trans),figsize=(len(Trans)*6,4))
+    baseline_arrow=linear_embed(vlm)
+    frac=np.zeros((len(Trans),len(n_neighs)))
+    
+    for j, k in enumerate(n_neighs):
+        for i,trans in enumerate(Trans):
+            vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
+                                          n_neighbors=k, knn_random=False, sampled_fraction=1)
+            if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
+                warnings.warn("Nan values in corrcoef, setting them to 0")
+                vlm.corrcoef[np.isnan(vlm.corrcoef)]=0
+                
+            vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
+            
+            frac[i,j]=plotTheta(ax[i], baseline_arrow, vlm.delta_embedding, k)
+    
+    ax[0].set_ylabel("density")
+    ax[1].axes.yaxis.set_ticklabels([])
+    ax[2].axes.yaxis.set_ticklabels([])
+
+    plt.legend()
+    fig.tight_layout()
+    
+    return fig, frac
 
