@@ -20,8 +20,8 @@ import warnings
 
 import scipy
 from scipy import integrate
-from scipy.fft import irfft, ifft
-
+from scipy.fft import irfft, ifft, irfft2
+from scipy.stats import rv_discrete
 
 
 # parameter
@@ -187,7 +187,8 @@ def SimArrowPlots(vlm,meta=None,ax=None,quiver_scale=5):
     
 
 
-def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quiver_scale=5,title=True):
+def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quiver_scale=5,title=True,plot_baseline=True,
+    steps=(10, 10), n_neighbors=100):
     '''
     Plot arrow embeddings for vlm data with defined count transformations
     
@@ -217,7 +218,7 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
             vlm.corrcoef[np.isnan(vlm.corrcoef)]=0
 
         vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
-        vlm.calculate_grid_arrows(smooth=0.5, steps=(10, 10), n_neighbors=100)
+        vlm.calculate_grid_arrows(smooth=0.5, steps=steps, n_neighbors=n_neighbors)
 
         plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10])
     
@@ -225,7 +226,7 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
     if embed=="PCA":
         if sim:
             princCurvePlots(ax,vlm,meta,color=False)
-        else:
+        if plot_baseline: 
             v=linear_embed(vlm)
             ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.8, linewidth=3, scale=5, label="baseline")
    
@@ -334,6 +335,103 @@ def poiss_samp(k,tau,t,beta,gamma):
 def get_cell_spec_K(K,cell_type):
     k = [K[0],K[1],K[cell_type]]
     return np.array(k)
+
+def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42):
+    X = np.zeros((2,nCells,nGenes))
+
+    n_cells_per_type = nCells//n_cell_types
+    g_true = np.zeros(nGenes) #deg rate
+    b_true = np.zeros(nGenes) #burst size
+
+    cell_types = np.zeros(nCells)
+    np.random.seed(seed)
+    K = np.zeros((nGenes,n_cell_types))
+    for j in range(nGenes):
+        beta = 1
+        b = np.clip(10**np.random.normal(1,0.8),0.05,25)
+        b_true[j] = b
+        gamma = 10**np.clip(np.random.normal(0,0.5,size=n_cell_types),0.01,4)
+        g_true[j] = gamma[0]
+
+        for i in range(n_cell_types):
+            FLAG = True
+            while FLAG:
+                kini = np.clip(10**np.random.normal(-0.5,0.5),0.01,5)
+                K[j,i] = kini
+
+
+                if (i+1)<n_cell_types:
+                    IND = range(i*n_cells_per_type,(i+1)*n_cells_per_type)
+                else:
+                    IND = range(i*n_cells_per_type,nCells)
+                mu = np.array([kini*b/beta, kini*b/gamma[i]])
+                std = np.sqrt(mu + mu*[b,b*beta/(beta+gamma[i])])
+                lm = np.clip(np.ceil(mu+5*std),10,np.inf)
+                lm = [int(x) for x in lm]
+                
+                if np.prod(lm)>15000:
+                    pass
+                else:
+                    mesh = np.meshgrid(*[np.arange(x) for x in lm], indexing='ij')
+                    mesh = (mesh[0].flatten(),mesh[1].flatten())
+                    var_val = np.asarray([(mesh[0][i],mesh[1][i]) for i in range(np.prod(lm))])
+                    prob = cme_integrator(np.array([kini,b,beta,gamma[i]]),lm)
+                    prob = prob.flatten()
+                    var_inds = np.arange(0,len(var_val))
+                    distrib = rv_discrete(values=(var_inds, prob))
+                    VAL = var_val[distrib.rvs(size=len(IND))]
+                    X[:,IND,j] = VAL.T
+                    FLAG=False
+
+            if j==0:
+                cell_types[IND] = i
+    return X,cell_types,cell_types,K,g_true,b_true
+
+def cme_integrator(p,lm,method='fixed_quad',fixed_quad_T=10,quad_order=60,quad_vec_T=np.inf):
+    kini,b,bet,gam = p
+    u = []
+    mx = np.copy(lm)
+
+    #initialize the generating function evaluation points
+    mx[-1] = mx[-1]//2 + 1
+    for i in range(len(mx)):
+        l = np.arange(mx[i])
+        u_ = np.exp(-2j*np.pi*l/lm[i])-1
+        u.append(u_)
+    g = np.meshgrid(*[u_ for u_ in u], indexing='ij')
+    for i in range(len(mx)):
+        g[i] = g[i].flatten()[:,np.newaxis]
+
+    if bet != gam: #compute weights for the ODE solution.
+        f = b*bet/(bet-gam)
+        g[1] *= f
+        g[0] *= b
+        g[0] -= g[1]
+    else:
+        g[1] *= (b*gam)
+        g[0] *= b
+
+    #define function to integrate by quadrature.
+    fun = lambda x: INTFUN(x,g,bet,gam)
+    if method=='quad_vec':
+        T = quad_vec_T*(1/bet+1/gam+1/kini)
+        gf = scipy.integrate.quad_vec(fun,0,T)[0]
+    if method=='fixed_quad':
+        T = fixed_quad_T*(1/bet+1/gam+1/kini)
+        gf = scipy.integrate.fixed_quad(fun,0,T,n=quad_order)[0]
+
+    #convert back to the probability domain, renormalize to ensure non-negativity.
+    gf = np.exp(kini*gf) #gf can be multiplied by k in the argument, but this is not relevant for the 3-parameter input.
+    gf = gf.reshape(tuple(mx))
+    Pss = irfft2(gf, s=tuple(lm)) 
+    Pss[Pss<1e-9]=1e-9
+    Pss = np.abs(Pss)/np.sum(np.abs(Pss))
+    return Pss
+
+def INTFUN(x,g,bet,gam):
+    U = np.exp(-bet*x)*g[0]+np.exp(-gam*x)*g[1]
+    return U/(1-U)
+
 
 def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="ab(c/d/e)", seed=42):
     '''
