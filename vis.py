@@ -18,6 +18,12 @@ import velocyto as vcy
 import anndata as ad
 import warnings
 
+import scipy
+from scipy import integrate
+from scipy.fft import irfft, ifft
+
+
+
 # parameter
 # plt.rcParams.update({'font.size': 22}) #this really shoult be activated separately
 
@@ -499,7 +505,7 @@ def simValidPlots(vlm,tau,meta,geneind=0,knn_k=50):
     selection_names = ['raw','size_norm','imputed']
     for i in range(3):
         plotSimCounts(ax2[i],vlm,geneind,selection_names[i])
-        plotGroundTruthCounts(ax2[i],vlm,geneind,tau)
+        plotGroundTruthCounts(ax2[i],vlm,geneind,meta)
     ax2[0].set_ylabel('Abundance')
     ax2[0].set_title('Raw counts')
     ax2[1].set_title('Size-normalized counts')
@@ -695,7 +701,8 @@ def plotSimCounts(ax,vlm,geneind,selection):
     ax.scatter(tvec,U,color=cnas,s=siz,alpha=alf)
     ax.scatter(tvec,S,color=cmat,s=siz,alpha=alf)
 
-def plotGroundTruthCounts(ax,vlm,geneind,tau):
+def plotGroundTruthCounts(ax,vlm,geneind,meta):
+    nCells,nGenes,T,tau,topo = meta
     #there are better ways to do this
 
     j=geneind
