@@ -19,10 +19,37 @@ import anndata as ad
 import warnings
 
 # parameter
-plt.rcParams.update({'font.size': 22})
+# plt.rcParams.update({'font.size': 22}) #this really shoult be activated separately
+
+#girl with the pearl earring - vermeer
 vermeer_hex = ("#A65141", "#E7CDC2", "#80A0C7", "#394165", "#FCF9F0", "#B1934A",
              "#DCA258", "#100F14", "#8B9DAF", "#EEDA9D")
 vermeer = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in vermeer_hex]
+colors20 = np.vstack((plt.cm.tab20b(np.linspace(0., 1, 20))[::2], plt.cm.tab20c(np.linspace(0, 1, 20))[1::2]))
+
+#milkmaid - vermeer
+milkmaid_hex = ("#48211A","#376597","#537270","#556246","#928F6B","#CCAF69",
+               "#ECE5D3","#104A8A","#C5AC8E","#889F95","#7C4728","#00295D",
+               "#D9B196")
+milkmaid = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in milkmaid_hex]
+
+#view of delft - vermeer
+delft_hex = ("#78A8D1","#D5BF98","#E3C78F","#FDF9F8","#867D6C","#A04437","#AF7366",
+         "#EFBF6A","#8E7C56","#CDD4E4","#8B6C4F","#B4B7B9")
+delft = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in delft_hex]
+
+cnas = vermeer[6] #nascent color
+cmat = vermeer[0] #mature color
+cbg = vermeer[4] # off-white background to make it stand out
+
+pmfcolor = delft[0] #analytical PMF color
+lw_id = 3.4
+lw_pmf = 3.4
+
+id_line_color = delft[0]
+region_color = vermeer[2]
+
+
 colors20 = np.vstack((plt.cm.tab20b(np.linspace(0., 1, 20))[::2], plt.cm.tab20c(np.linspace(0, 1, 20))[1::2]))
     
 emb_dict={"default":'pcs',"PCA":"ps", "UMAP":"us", "tSNE":"ts"}
@@ -245,7 +272,7 @@ def eval_x_interval(k_,dt,beta,gamma,x0):
         /gamma/(gamma-1)])
     return x
 
-def eval_x(k,tau,t,beta,gamma):
+def eval_x(k,tau,t,beta,gamma,x0=None):
     '''
     Evaluates a single gene's average expression at a time point t.
     This solution derives from the reaction rate equations. The value is
@@ -266,7 +293,8 @@ def eval_x(k,tau,t,beta,gamma):
     x: average expression value (vector, unspliced and spliced)
     '''
     # x=x0
-    x0 = [k[0]/beta, k[0]/gamma]
+    if x0 is None:
+        x0 = [k[0]/beta, k[0]/gamma]
     x=x0
     ind_last = sum(tau<=t)
     tau = np.concatenate((tau[:(ind_last)],[t]))
@@ -433,55 +461,139 @@ def sim_export(simdata, meta, name="simdata"):
     # adata.var["k2"]=K[:,3]
     # adata.uns['tau']=tau
     adata.write_loom(name+".loom")
-
-
-# def simPdfPlot(ax,vlm):
-#     pmf_nas = get_nas(K,tau,T,beta,np.max(Xg[0]))
-#     pmf_mat = get_mat(K,tau,T,beta,gamma,np.max(Xg[1]))
-def simValidPlots(vlm,tau,geneind=0,knn_k=50):
+def simValidPlots(vlm,tau,meta,geneind=0,knn_k=50):
     '''
     Plot sim validation figures.
     These should be later combined into a single figure, instead of several.
     MAKE SURE THE IMPUTATION HAPPENS.
     '''
+    # nCells,nGenes,T,tau,topo = meta
     n_comps = np.where(np.diff(np.diff(np.cumsum(vlm.pca.explained_variance_ratio_))>0.005))[0][0]
     vlm.knn_imputation(n_pca_dims=n_comps,k=knn_k, balanced=True, b_sight=np.minimum(knn_k*8, vlm.S.shape[1]-1), b_maxl=np.minimum(knn_k*4, vlm.S.shape[1]-1))
 
-    fig=plt.figure(figsize=(18,11))
+    fig=plt.figure(figsize=(20,15))
 
     Xtheo = getGroundTruthAvg(vlm,tau)
 
     ax1=[]
     for i in range(4):
-        ax1.append(plt.subplot2grid((11, 12), (4, i*3), rowspan=3, colspan=3))
+        ax1.append(plt.subplot2grid((14, 12), (7, i*3), rowspan=3, colspan=3))
     selection_names = ['U','S']
 
     for i in range(2):
         plotImpMeanPerformance(ax1[i],vlm,Xtheo,selection_names[i])
         plotImpVarPerformance(ax1[2+i],vlm,Xtheo,selection_names[i])
-    
+    ax1[0].set_xlabel(r'True $\mu_u$')
+    ax1[0].set_ylabel('Pooled unspliced mean')
+    ax1[1].set_xlabel(r'True $\mu_s$')
+    ax1[1].set_ylabel('Pooled spliced mean')
+    ax1[2].set_xlabel(r'True $\sigma^2_u$')
+    ax1[2].set_ylabel('Pooled unspliced var')
+    ax1[3].set_xlabel(r'True $\sigma^2_s$')
+    ax1[3].set_ylabel('Pooled spliced var')
+    ax1[0].text(0.04,0.96,r'Identity $\pm$ 1 OOM',transform=ax1[0].transAxes,fontsize=20,horizontalalignment='left',verticalalignment='top',color=id_line_color)
+
     ax2=[]
     for i in range(3):
-        ax2.append(plt.subplot2grid((11, 12), (0, i*4), rowspan=4, colspan=4))
+        ax2.append(plt.subplot2grid((14, 12), (3, i*4), rowspan=4, colspan=4))
     selection_names = ['raw','size_norm','imputed']
     for i in range(3):
         plotSimCounts(ax2[i],vlm,geneind,selection_names[i])
         plotGroundTruthCounts(ax2[i],vlm,geneind,tau)
-        
+    ax2[0].set_ylabel('Abundance')
+    ax2[0].set_title('Raw counts')
+    ax2[1].set_title('Size-normalized counts')
+    ax2[2].set_title('Imputed counts')
+    ax2[0].text(0.04,0.5,'Spliced',horizontalalignment='left',color=cmat,verticalalignment='top',fontsize=20,transform=ax2[0].transAxes)
+    ax2[0].text(0.04,0.4,'Unspliced',horizontalalignment='left',color=cnas,verticalalignment='top',fontsize=20,transform=ax2[0].transAxes)
+
     ax3=[]
     for i in range(3):
-        ax3.append(plt.subplot2grid((11, 12), (7, i*4), rowspan=4, colspan=4))
-    ax3[0].set_ylabel("Imputed gamma")
-    ax3[1].set_ylabel("True gamma")
+        ax3.append(plt.subplot2grid((14, 12), (10, i*4), rowspan=4, colspan=4))
+
+    # ax3[0].set_ylabel("Imputed gamma")
+    # ax3[1].set_ylabel("True gamma")
     vlm.fit_gammas(use_imputed_data=False, use_size_norm=False, weighted=False)
     plotGamma(ax3[0],vlm)
     vlm.fit_gammas(use_imputed_data=False, use_size_norm=True, weighted=True, weights="maxmin_diag")
     plotGamma(ax3[1],vlm)
     vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
     plotGamma(ax3[2],vlm)
-    
+    ax3[0].set_ylabel(r'$\gamma$ inferred from raw')
+    ax3[1].set_ylabel(r'$\gamma$ inferred from size-normalized')
+    ax3[2].set_ylabel(r'$\gamma$ inferred from imputed')
+    # ax3[0].set_title('Inference from raw counts')
+    # ax3[1].set_title('Inference from size-normalized counts')
+    # ax3[2].set_title('Inference from imputed counts')
+
+    ax4=[]
+    for i in range(3):
+        ax4.append(plt.subplot2grid((14, 12), (0, i*4), rowspan=3, colspan=4))
+    mx = plotHist(ax4[1],vlm,'U',geneind)
+    pmf = getPMF(vlm,mx,'U',geneind,meta)
+    plotPMF(ax4[1],pmf)
+    ax4[1].set_ylabel('Probability')
+    ax4[1].text(2,pmf[0],'Analytical solution',color=pmfcolor,horizontalalignment='left',verticalalignment='top',fontsize=20)
+    ax4[1].set_xlabel('# unspliced RNA')
+
+    mx = plotHist(ax4[2],vlm,'S',geneind)
+    pmf = getPMF(vlm,mx,'S',geneind,meta)
+    plotPMF(ax4[2],pmf)
+    ax4[2].set_xlabel('# spliced RNA')
+
+    plotK(ax4[0],vlm,geneind,meta)
     return fig
 
+def plotPMF(ax,pmf):
+    x = np.arange(0,len(pmf))
+    ax.plot(x,pmf,color=pmfcolor,linewidth=lw_pmf)
+    ax.set_yscale('log')
+    ax.set_xticks(x)
+
+def plotHist(ax,vlm,species_str,geneind):
+    X = getattr(vlm,species_str)[geneind,:]
+    bins = np.arange(0,np.max(X)+1,1)-0.5
+    ax.hist(X,density=True,bins=bins,facecolor=[0.8]*3) 
+    return np.max(X)+1
+
+def get_nas(k,tau,T,beta,lm):
+    lm = int(lm)
+    mx = lm//2 + 1
+    l = np.arange(mx)
+    u_ = np.exp(-2j*np.pi*l/lm)-1
+    fun = lambda t: np.exp(u_*eval_x(k,tau,t,beta,1,[0,0])[0])
+    gf = scipy.integrate.quad_vec(fun,0,T)[0]/T
+    Pss = irfft(gf,lm) 
+    return Pss
+
+def get_mat(k,tau,T,beta,gamma,lm):
+    lm = int(lm)
+    mx = lm//2 + 1
+    l = np.arange(mx)
+    u_ = np.exp(-2j*np.pi*l/lm)-1
+    fun = lambda t: np.exp(u_*eval_x(k,tau,t,beta,gamma,[0,0])[1])
+    gf = scipy.integrate.quad_vec(fun,0,T)[0]/T
+    Pss = irfft(gf,lm) 
+    return Pss
+
+def getPMF(vlm,mx,species_str,geneind,meta):
+    nCells,nGenes,T,tau,topo=meta
+    tau = np.asarray(tau)
+    # tvec = vlm.ca['time']
+    gamma = vlm.ra['gamma'][geneind]
+    beta = vlm.ra['beta'][geneind]
+    dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4}
+    dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3]}
+    n_K = dict_nk[topo]
+    K = np.vstack([vlm.ra['k'+str(i)] for i in range(n_K)]).T
+    branches = dict_Kval[topo]
+    n_branches = len(branches)
+    K = get_cell_spec_K(K[geneind],branches[0])
+
+    if species_str is 'U':
+        return get_nas(K,tau,T,beta,mx)
+    elif species_str is 'S':
+        return get_mat(K,tau,T,beta,gamma,mx)
 
 def plotImpMeanPerformance(ax,vlm,Xtheo,selection):
     if selection is 'U':
@@ -492,13 +604,14 @@ def plotImpMeanPerformance(ax,vlm,Xtheo,selection):
         i = 1
     ground_truth = Xtheo[i].T.flatten()
     imputed_value = getattr(vlm,field_str).flatten()
-    ax.loglog(ground_truth,imputed_value,'k.')
     xl = np.linspace(min(ground_truth),max(ground_truth))
-    ax.plot(xl,xl,'r-',linewidth=2)
-    ax.plot(xl,xl*10,'b-')
-    ax.plot(xl,xl/10,'b-')
-    ax.set_xlabel(selection + ' ground truth mean')
-    ax.set_ylabel(selection + ' imputed mean')
+    ax.scatter(ground_truth,imputed_value,color='k',s=5,alpha=0.4)
+    ax.fill_between(xl,xl/10,xl*10,facecolor=region_color,alpha=0.3)
+    ax.plot(xl,xl,'-',linewidth=lw_id,color=id_line_color)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    # ax.set_xlabel(selection + ' ground truth mean')
+    # ax.set_ylabel(selection + ' imputed mean')
     
 def plotImpVarPerformance(ax,vlm,Xtheo,selection):
     if selection is 'U':
@@ -509,13 +622,18 @@ def plotImpVarPerformance(ax,vlm,Xtheo,selection):
         i = 1
     ground_truth = Xtheo[i].T.flatten()
     imputed_value = getattr(vlm,field_str).flatten()
-    ax.loglog(ground_truth,imputed_value,'k.')
     xl = np.linspace(min(ground_truth),max(ground_truth))
-    ax.plot(xl,xl,'r-',linewidth=2)
-    ax.plot(xl,xl*10,'b-')
-    ax.plot(xl,xl/10,'b-')
-    ax.set_xlabel(selection + ' ground truth var')
-    ax.set_ylabel(selection + ' imputed var')
+    ax.scatter(ground_truth,imputed_value,color='k',s=5,alpha=0.4)
+    ax.fill_between(xl,xl/10,xl*10,facecolor=region_color,alpha=0.3)
+    ax.plot(xl,xl,'-',linewidth=lw_id,color=id_line_color)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    # ax.loglog(ground_truth,imputed_value,'k.')
+    # ax.plot(xl,xl,'r-',linewidth=2)
+    # ax.plot(xl,xl*10,'b-')
+    # ax.plot(xl,xl/10,'b-')
+    # ax.set_xlabel(selection + ' ground truth var')
+    # ax.set_ylabel(selection + ' imputed var')
 
 
 
@@ -544,11 +662,17 @@ def plotGamma(ax,vlm):
     x = vlm.ra['gamma']/vlm.ra['beta']
     tmp = vlm.gammas
     vlm.gammas[vlm.gammas<1e-4]=1e-4
-    ax.loglog(x,vlm.gammas,'k.')
+    # ax.loglog(x,vlm.gammas,'k.')
     xl = np.linspace(min(x),max(x))
-    ax.plot(xl,xl,'r-',linewidth=2)
-    ax.plot(xl,xl*10,'b-')
-    ax.plot(xl,xl/10,'b-')
+    ax.scatter(x,vlm.gammas,c='k',s=10,alpha=0.9)
+    ax.fill_between(xl,xl/10,xl*10,facecolor=region_color,alpha=0.3)
+    ax.plot(xl,xl,'-',linewidth=lw_id,color=id_line_color)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    ax.set_xlabel(r'True $\gamma$')
+    # ax.plot(xl,xl,'r-',linewidth=2)
+    # ax.plot(xl,xl*10,'b-')
+    # ax.plot(xl,xl/10,'b-')
     vlm.gammas = tmp
 
 def plotSimCounts(ax,vlm,geneind,selection):
@@ -564,8 +688,11 @@ def plotSimCounts(ax,vlm,geneind,selection):
     U = getattr(vlm,U_str)[geneind,:]
     S = getattr(vlm,S_str)[geneind,:]
     tvec = vlm.ca['time']
-    ax.plot(tvec,U,'.')
-    ax.plot(tvec,S,'.')
+
+    siz=2
+    alf=0.5
+    ax.scatter(tvec,U,color=cnas,s=siz,alpha=alf)
+    ax.scatter(tvec,S,color=cmat,s=siz,alpha=alf)
 
 def plotGroundTruthCounts(ax,vlm,geneind,tau):
     #there are better ways to do this
@@ -591,8 +718,13 @@ def plotGroundTruthCounts(ax,vlm,geneind,tau):
     I_ = np.argsort(tvec)
     tvec = tvec[I_]
     Xtheo = Xtheo[I_]
-    ax.plot(tvec,Xtheo,linewidth=2)
-
+    # ax.plot(tvec,Xtheo,linewidth=2)
+    siz=2
+    ax.plot(tvec,Xtheo[:,0],color=cbg,linewidth=6)
+    ax.plot(tvec,Xtheo[:,0],color=cnas,linewidth=2)
+    ax.plot(tvec,Xtheo[:,1],color=cbg,linewidth=6)
+    ax.plot(tvec,Xtheo[:,1],color=cmat,linewidth=2)
+    ax.set_xlabel('Time coordinate')
     # x0 = [K[geneind,0],K[geneind,0]/g_true[geneind]]
     # plt.plot(tvec,[eval_x(K[geneind,:],tau,t,1,g_true[geneind],x0)[0] for t in tvec],'k.')
     # plt.plot(tvec,[eval_x(K[geneind,:],tau,t,1,g_true[geneind],x0)[1] for t in tvec],'r.')
@@ -943,3 +1075,37 @@ def angleDevPlots(vlm,Trans,n_neighs):
     
     return fig, frac
 
+def plotK(ax,vlm,geneind,meta):
+    nCells,nGenes,T,tau,topo=meta
+    tau = np.asarray(tau)
+    gamma = vlm.ra['gamma'][geneind]
+    tvec = vlm.ca['time']
+    beta = vlm.ra['beta'][geneind]
+    dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4}
+    dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3]}
+    n_K = dict_nk[topo]
+    K = np.vstack([vlm.ra['k'+str(i)] for i in range(n_K)]).T
+    branches = dict_Kval[topo]
+    n_branches = len(branches)
+    TRUE_K = get_cell_spec_K(K[geneind],branches[0])
+    tvec = np.sort(tvec)
+    K0 = np.zeros(tvec.shape)
+    for i in range(len(tvec)):
+        if tvec[i]<=tau[1]:
+            K0[i] = TRUE_K[0]
+        elif tvec[i]>tau[1] and tvec[i]<tau[2]:
+            K0[i] = TRUE_K[1]
+        else:
+            K0[i] = TRUE_K[2]
+            
+    ax.plot(tvec,K0,'k-',linewidth=1)
+    ax.spines['left'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.text(0,TRUE_K[1]/2,'Original\ncell state',fontsize=20,horizontalalignment='left',verticalalignment='center')
+    ax.text((tau[1]+tau[2])/2,TRUE_K[1]*1.05,'Perturbation',fontsize=20,horizontalalignment='center',verticalalignment='bottom')
+    ax.text(T,TRUE_K[1]/2,'Reversion',fontsize=20,horizontalalignment='right')
+    ax.text(0,TRUE_K[0]*1.5,r'$\alpha(t)$',fontsize=20,horizontalalignment='left',verticalalignment='bottom')
+    ax.set_xlabel('Time coordinate')
+    ax.set_xticks(np.arange(0,T+1,5))
