@@ -350,8 +350,8 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
         beta = 1
         b = np.clip(10**np.random.normal(1,0.8),0.05,25)
         b_true[j] = b
-        gamma = 10**np.clip(np.random.normal(0,0.5,size=n_cell_types),0.01,4)
-        g_true[j] = gamma[0]
+        gamma = 10**np.clip(np.random.normal(-0.3,0.5),0.01,4)
+        g_true[j] = gamma
 
         for i in range(n_cell_types):
             FLAG = True
@@ -364,8 +364,8 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
                     IND = range(i*n_cells_per_type,(i+1)*n_cells_per_type)
                 else:
                     IND = range(i*n_cells_per_type,nCells)
-                mu = np.array([kini*b/beta, kini*b/gamma[i]])
-                std = np.sqrt(mu + mu*[b,b*beta/(beta+gamma[i])])
+                mu = np.array([kini*b/beta, kini*b/gamma])
+                std = np.sqrt(mu + mu*[b,b*beta/(beta+gamma)])
                 lm = np.clip(np.ceil(mu+5*std),10,np.inf)
                 lm = [int(x) for x in lm]
                 
@@ -375,7 +375,7 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
                     mesh = np.meshgrid(*[np.arange(x) for x in lm], indexing='ij')
                     mesh = (mesh[0].flatten(),mesh[1].flatten())
                     var_val = np.asarray([(mesh[0][i],mesh[1][i]) for i in range(np.prod(lm))])
-                    prob = cme_integrator(np.array([kini,b,beta,gamma[i]]),lm)
+                    prob = cme_integrator(np.array([kini,b,beta,gamma]),lm)
                     prob = prob.flatten()
                     var_inds = np.arange(0,len(var_val))
                     distrib = rv_discrete(values=(var_inds, prob))
