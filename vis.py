@@ -350,7 +350,7 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
         beta = 1
         b = np.clip(10**np.random.normal(1,0.8),0.05,25)
         b_true[j] = b
-        gamma = 10**np.clip(np.random.normal(-0.3,0.5),0.01,4)
+        gamma = 10**np.clip(np.random.normal(-0.3,0.5),0.08,4)
         g_true[j] = gamma
 
         for i in range(n_cell_types):
