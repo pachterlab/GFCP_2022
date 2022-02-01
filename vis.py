@@ -473,7 +473,7 @@ def simValidPlots(vlm,tau,meta,geneind=0,knn_k=50):
 
     fig=plt.figure(figsize=(20,15))
 
-    Xtheo = getGroundTruthAvg(vlm,tau)
+    Xtheo = getGroundTruthAvg(vlm,meta)
 
     ax1=[]
     for i in range(4):
@@ -637,7 +637,8 @@ def plotImpVarPerformance(ax,vlm,Xtheo,selection):
 
 
 
-def getGroundTruthAvg(vlm,tau):
+def getGroundTruthAvg(vlm,meta):
+    nCells,nGenes,T,tau,topo = meta
     i=0  #just recycling the more generic code
     tvec = vlm.ca['time']
     gamma = vlm.ra['gamma']
