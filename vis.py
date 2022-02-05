@@ -167,7 +167,7 @@ def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, color=c)
     return
 
-def linear_embed(vlm, gammas=None):
+def linear_embed(vlm, True_gammas=False):
     '''
     Linear embed the velocity
     S_sz is used because that's how we get S_norm for PCA plot
@@ -178,7 +178,9 @@ def linear_embed(vlm, gammas=None):
     -------
     v: velocity arrows for each cell
     '''
-    if gammas == None:
+    if True_gammas:
+        gammas = vlm.true_gammas
+    else:
         gammas = vlm.gammas
     delta_S_sz = vlm.U_sz - gammas[:,None] * vlm.S_sz # same as vlm.predict_U() and vlm.calculate_velocity()
     mask=delta_S_sz<-1e-6
