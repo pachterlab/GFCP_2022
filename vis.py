@@ -774,7 +774,7 @@ def plotGamma(ax,vlm):
     ax.plot(xl,xl,'-',linewidth=lw_id,color=id_line_color)
     ax.set_yscale('log')
     ax.set_xscale('log')
-    ax.set_xlabel(r'True $\gamma$')
+    ax.set_xlabel(r'True $\gamma/\beta$')
     # ax.plot(xl,xl,'r-',linewidth=2)
     # ax.plot(xl,xl*10,'b-')
     # ax.plot(xl,xl/10,'b-')
