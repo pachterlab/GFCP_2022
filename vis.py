@@ -62,7 +62,7 @@ emb_dict={"default":'pcs',"PCA":"ps", "UMAP":"us", "tSNE":"ts"}
 dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4,"ab(c/d/e)":5}
 dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3],"ab(c/d/e)":[2,3,4]}
 
-def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True):
+def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True, sz_normalize=True):
     if filter:
         vlm.filter_cells(bool_array=vlm.initial_Ucell_size > np.percentile(vlm.initial_Ucell_size, 0.5))
         vlm.score_detection_levels(min_expr_counts=40, min_cells_express=30)
@@ -70,7 +70,9 @@ def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True):
         vlm.score_cv_vs_mean(N=nGene, plot=False, max_expr_avg=35)
         vlm.filter_genes(by_cv_vs_mean=True)
 
-    vlm.normalize("both", size=True, log=True)
+    
+    vlm.normalize("both", size=sz_normalize, log=True)
+
     vlm.perform_PCA(which="S_norm")
     vlm.pcs=vlm.pcs[:,:2]
     
@@ -1049,20 +1051,6 @@ def getJaccard(x1, x2, n_neigh=150):
     return frac
 
 
-
-# def princCurveCompute(ax,vlm,meta):
-#     '''
-#     Plot principal curve coordinates for linear PCA embedding
-    
-#     Parameters
-#     ----------
-    
-#     Returns
-#     -------
-#     '''
-#     return
-
-
 # ---------------- Plotting -------------
 
 
@@ -1136,18 +1124,16 @@ def plotTheta(ax, X, Y, k):
     sn.kdeplot(data=angle,shade=True,ax=ax,label=str(k))
     #ax.hist(angle,density=True,label=str(k),alpha=0.2)
     ax.set_xlabel("angle")
-    ax.xaxis.set_major_formatter(FuncFormatter(
-       lambda val,pos: '{:.0g}$\pi$'.format(val/np.pi) if val !=0 else '0'
-    ))
-    ax.xaxis.set_major_locator(MultipleLocator(base=np.pi))
     ax.set_xlim([-np.pi, np.pi])
+    ax.set_xticks(np.arange(-np.pi, np.pi+0.01, np.pi/2))
+    labels = [ r'$-\pi$', r'$-\pi/2$', '$0$',  r'$\pi/2$', r'$\pi$']
+    ax.set_xticklabels(labels)
     return np.sum(np.abs(angle)>np.pi/2)/len(angle)
-
 
 def angleDevPlots(vlm,Trans,n_neighs):
     '''
     Plot angle deviations from transformations over varying neighbors for embedding (only compared to baseline)
-    
+
     Parameters
     ----------
 
@@ -1159,7 +1145,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
     fig, ax= plt.subplots(1, len(Trans),figsize=(len(Trans)*6,4))
     baseline_arrow=linear_embed(vlm)
     frac=np.zeros((len(Trans),len(n_neighs)))
-    
+
     for j, k in enumerate(n_neighs):
         for i,trans in enumerate(Trans):
             vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
@@ -1171,15 +1157,14 @@ def angleDevPlots(vlm,Trans,n_neighs):
             vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
             
             frac[i,j]=plotTheta(ax[i], baseline_arrow, vlm.delta_embedding, k)
-    
-    ax[0].set_ylabel("density")
-    ax[1].axes.yaxis.set_ticklabels([])
-    ax[2].axes.yaxis.set_ticklabels([])
 
-    plt.legend()
+    ax[0].set_ylabel("density")
+    ax[1].set(ylabel=None)
+    ax[2].set(ylabel=None)
     fig.tight_layout()
-    
+
     return fig, frac
+
 
 def plotK(ax,vlm,geneind,meta):
     nCells,nGenes,T,tau,topo=meta
