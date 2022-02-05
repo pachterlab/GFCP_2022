@@ -59,8 +59,8 @@ region_color = vermeer[2]
 colors20 = np.vstack((plt.cm.tab20b(np.linspace(0., 1, 20))[::2], plt.cm.tab20c(np.linspace(0, 1, 20))[1::2]))
     
 emb_dict={"default":'pcs',"PCA":"ps", "UMAP":"us", "tSNE":"ts"}
-dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4,"ab(c/d/e)":5}
-dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3],"ab(c/d/e)":[2,3,4]}
+dict_nk = {"aba":2,"ab(a/c)":3,"ab(c/d)":4,"ab(c/d/e)":5} # number of states/Ks
+dict_Kval = {"aba":[0],"ab(a/c)":[0,2],"ab(c/d)":[2,3],"ab(c/d/e)":[2,3,4]} #indices of final branches
 
 def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True, sz_normalize=True):
     if filter:
@@ -70,16 +70,21 @@ def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True, sz_normalize=
         vlm.score_cv_vs_mean(N=nGene, plot=False, max_expr_avg=35)
         vlm.filter_genes(by_cv_vs_mean=True)
 
-    
-    vlm.normalize("both", size=sz_normalize, log=True)
 
+    vlm.normalize("both", size=sz_normalize, log=True)
     vlm.perform_PCA(which="S_norm")
     vlm.pcs=vlm.pcs[:,:2]
-    
+
     if sim:
         if meta is None:
             raise ValueError("If sim is true, meta cannot be None")
-        vlm.colors, vlm.ctime=getClusterTime(vlm.ca["time"],vlm.ca["celltype"], meta)
+        nCells,nGenes,T,tau,topo = meta
+        tvec = vlm.ca["time"]
+        labels = vlm.ca["celltype"]
+        labels[tvec>tau[2]]=labels[tvec>tau[2]]+2
+        vlm.colors, vlm.ctime=getClusterTime(tvec,labels, meta)
+        vlm.true_gammas = vlm.ra['gamma']/vlm.ra['beta']
+        
     else:
         labels = vlm.ca["Clusters"]
         cluster_colors_dict={l:colors20[l % 20,:] for l in labels}
@@ -162,18 +167,20 @@ def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, color=c)
     return
 
-def linear_embed(vlm):
+def linear_embed(vlm, gammas=None):
     '''
     Linear embed the velocity
-    
+    S_sz is used because that's how we get S_norm for PCA plot
     Parameters
     ----------
-    
+
     Returns
     -------
     v: velocity arrows for each cell
     '''
-    delta_S_sz = vlm.U_sz - vlm.gammas[:,None] * vlm.S_sz # same as vlm.predict_U() and vlm.calculate_velocity()
+    if gammas == None:
+        gammas = vlm.gammas
+    delta_S_sz = vlm.U_sz - gammas[:,None] * vlm.S_sz # same as vlm.predict_U() and vlm.calculate_velocity()
     mask=delta_S_sz<-1e-6
     delta_t=np.min(vlm.S_sz[mask]/np.abs(delta_S_sz[mask]))
     vlm.S_sz_t = vlm.S_sz + delta_t/2 * delta_S_sz  # same as vlm.extrapolate_cell_at_t(delta_t=1)
@@ -1057,10 +1064,10 @@ def getJaccard(x1, x2, n_neigh=150):
 def princCurvePlots(ax,vlm,meta,color=False):
     '''
     Plot principal curve coordinates for linear PCA embedding
-    
+
     Parameters
     ----------
-    
+
     Returns
     -------
     '''
@@ -1088,9 +1095,13 @@ def princCurvePlots(ax,vlm,meta,color=False):
             Xtheo_c,ctime=getClusterTime(tvec_red,labels,meta=meta,alpha=0.2)
             points = Y[:,:2].reshape(len(Y), 1, 2)
             segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            blc = LineCollection(segments,colors='w')
+            blc.set_linewidth(6)
+            ax.add_collection(blc)
             lc = LineCollection(segments,colors=Xtheo_c)
             lc.set_linewidth(2)
             ax.add_collection(lc)
+            
         else:
             ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
             ax.plot(Y[:,0],Y[:,1],c='k',lw=2, alpha=0.8)
