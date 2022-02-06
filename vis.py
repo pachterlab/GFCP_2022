@@ -881,7 +881,7 @@ def plotEmbed(ax,vlm,embed,sim):
 
 
     
-def plotPhase(ax, vlm, gene_idx, jitter=False):
+def plotPhase(ax, vlm, gene_idx, jitter=False,s=3):
     '''
     Plot phase portrait
     
@@ -900,9 +900,9 @@ def plotPhase(ax, vlm, gene_idx, jitter=False):
     ax.plot(x_, x_*k+b+np.random.normal(0,0.1,size=x_.shape), color=vermeer[0], linewidth=4)
     
     if jitter:
-        ax.scatter(x+np.random.normal(0,0.1,size=x.shape), y+np.random.normal(0,0.1,size=x.shape), c=vlm.colors, s=1)
+        ax.scatter(x+np.random.normal(0,0.1,size=x.shape), y+np.random.normal(0,0.1,size=x.shape), c=vlm.colors, s=s)
     else:
-        ax.scatter(x, y, c=vlm.colors, s=1)
+        ax.scatter(x, y, c=vlm.colors, s=s)
     return
 
 
@@ -931,7 +931,7 @@ def plotGammaK(ax, vlm, gene_idx, n_neigh, gamma, q, sim=False):
     ax2.set_ylim([0,1])
     return
 
-def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=True):
+def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=True,size = 3):
     '''
     Plot phase portrais with gamma distributions for various genes across n_neighs
     
@@ -964,7 +964,7 @@ def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=T
             # Plot phase plots
             for i, gene in enumerate(genes):
                 gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                plotPhase(ax[i][j], vlm, gene_idx)
+                plotPhase(ax[i][j], vlm, gene_idx,s=size)
    
         elif zero_is_special:
             vlm.Sx=vlm.S
@@ -981,7 +981,7 @@ def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=T
             # Plot phase plots
             for i, gene in enumerate(genes):
                 gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                plotPhase(ax[i][j], vlm, gene_idx, jitter=True)
+                plotPhase(ax[i][j], vlm, gene_idx, jitter=True,s=size)
         else:
             vlm.Sx=vlm.S
             vlm.Ux=vlm.U
@@ -990,7 +990,7 @@ def phasePlots(vlm, genes, n_neighs, n_neighs_list, sim=False, zero_is_special=T
             # Plot phase plots
             for i, gene in enumerate(genes):
                 gene_idx=int(np.where(vlm.ra['Gene']==gene)[0][0])
-                plotPhase(ax[i][j], vlm, gene_idx, jitter=True)
+                plotPhase(ax[i][j], vlm, gene_idx, jitter=True,s=size)
 
     for j, k in enumerate(n_neighs_list):
         knn_k=int(k)
