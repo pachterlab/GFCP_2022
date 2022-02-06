@@ -498,7 +498,7 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="ab(
         cell_types[(tvec>tau[2]) & (cell_fate==0)] = 2
         cell_types[(tvec>tau[2]) & (cell_fate==1)] = 3
         cell_types[(tvec>tau[2]) & (cell_fate==2)] = 4
-        print("ab(c/d/e)")
+        # print("ab(c/d/e)")
     else:
         n_branch_cells = int(nCells/2)
         branch_cells = np.random.choice(nCells,n_branch_cells,False)
@@ -508,12 +508,12 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="ab(
             n_K = 3
             cell_types[(tvec>tau[2]) & ~filt] = 0
             cell_types[(tvec>tau[2]) & filt] = 2
-            print("ab(a/c)")
+            # print("ab(a/c)")
         if topo == "ab(c/d)":
             n_K = 4
             cell_types[(tvec>tau[2]) & ~filt] = 2
             cell_types[(tvec>tau[2]) & filt] = 3
-            print("ab(c/d)")
+            # print("ab(c/d)")
    
     K = np.zeros((nGenes,n_K))
 
