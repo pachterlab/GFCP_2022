@@ -1164,7 +1164,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
             vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
                                           n_neighbors=k, knn_random=False, sampled_fraction=1)
             if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
-                warnings.warn("Nan values in corrcoef, setting them to 0. Tansformation=" + str(trans))
+                # warnings.warn("Nan values in corrcoef, setting them to 0. Transformation=" + str(trans)) doesn't seem to work
                 vlm.corrcoef[np.isnan(vlm.corrcoef)]=0
                 
             vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
