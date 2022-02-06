@@ -1176,7 +1176,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
         ax[i].set(ylabel=None)
     fig.tight_layout()
 
-    return ax, frac
+    return fig, frac
 
 
 def plotK(ax,vlm,geneind,meta):
