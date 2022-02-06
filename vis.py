@@ -237,12 +237,12 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
     if embed=="PCA":
         if sim:
             princCurvePlots(ax,vlm,meta,color=False)
-        if plot_baseline: 
+        if plot_baseline:
             v=linear_embed(vlm)
-            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.8, linewidth=3, scale=5, label="baseline")
+            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.3, linewidth=3, scale=quiver_scale/2, label="baseline")
    
     if legend:
-        ax.legend(loc='upper right') #bbox_to_anchor=(1.05, 1.0),
+        ax.legend(bbox_to_anchor=(1.05, 1.0))
     if title:
         ax.set_title(embed)
         
