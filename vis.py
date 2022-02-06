@@ -1164,7 +1164,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
             vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
                                           n_neighbors=k, knn_random=False, sampled_fraction=1)
             if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
-                warnings.warn("Nan values in corrcoef, setting them to 0")
+                warnings.warn("Nan values in corrcoef, setting them to 0. Tansformation=" + str(trans))
                 vlm.corrcoef[np.isnan(vlm.corrcoef)]=0
                 
             vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
@@ -1172,11 +1172,11 @@ def angleDevPlots(vlm,Trans,n_neighs):
             frac[i,j]=plotTheta(ax[i], baseline_arrow, vlm.delta_embedding, k)
 
     ax[0].set_ylabel("density")
-    ax[1].set(ylabel=None)
-    ax[2].set(ylabel=None)
+    for i in range(1,len(Trans)):
+        ax[i].set(ylabel=None)
     fig.tight_layout()
 
-    return fig, frac
+    return ax, frac
 
 
 def plotK(ax,vlm,geneind,meta):
