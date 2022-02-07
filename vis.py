@@ -901,7 +901,8 @@ def plotPhase(ax, vlm, gene_idx, jitter=False,s=3):
     b=vlm.q[gene_idx]
     
     x_=np.array([np.amin(x), np.amax(x)])
-    ax.plot(x_, x_*k+b+np.random.normal(0,0.1,size=x_.shape), color=vermeer[0], linewidth=4)
+    # ax.plot(x_, x_*k+b+np.random.normal(0,0.1,size=x_.shape), color=vermeer[0], linewidth=4)  # not necessary to add jitter to fit
+    ax.plot(x_, x_*k+b, color=vermeer[0], linewidth=4)
     
     if jitter:
         ax.scatter(x+np.random.normal(0,0.1,size=x.shape), y+np.random.normal(0,0.1,size=x.shape), c=vlm.colors, s=s)
