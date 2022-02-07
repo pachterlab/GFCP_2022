@@ -920,13 +920,13 @@ def plotGammaK(ax, vlm, gene_idx, n_neigh, gamma, q, sim=False):
     ax.plot(n_neigh, gamma, color=vermeer[0],label="gamma",lw=6)
     if sim:
         ax.plot(n_neigh,vlm.ra["gamma"][gene_idx]/vlm.ra["beta"][gene_idx]*np.ones(len(n_neigh)),'r-',label="true gamma")
-    ax.set_ylabel("gamma")
+    ax.set_ylabel(r"Inferred $\gamma/\beta$")
     ax.yaxis.label.set_color(vermeer[0])
     frac=vlm.Ux[gene_idx,:,None] - vlm.Sx[gene_idx,:,None]*gamma[None,:] - q[None,:]
     frac=np.sum(frac>0,axis=0)/np.shape(frac)[0]
     ax2=ax.twinx()
     ax2.plot(n_neigh, frac, color=vermeer[3],label="frac",lw=6)
-    ax2.set_ylabel("perc cells unregulated")
+    ax2.set_ylabel("Fraction upregulated cells")
     ax2.yaxis.label.set_color(vermeer[3])
     ax2.set_ylim([0,1])
     return
