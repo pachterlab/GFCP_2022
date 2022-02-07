@@ -72,8 +72,8 @@ def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True, sz_normalize=
 
 
     vlm.normalize("both", size=sz_normalize, log=True)
-    vlm.perform_PCA(which="S_norm")
-    vlm.pcs=vlm.pcs[:,:2]
+    vlm.perform_PCA(which="S_norm",n_components=25)
+    # vlm.pcs=vlm.pcs[:,:2]
 
     if sim:
         if meta is None:
@@ -108,7 +108,7 @@ def makeEmbeds(vlm, embeds, x_name="S_norm", new_pca=True):
     
     if new_pca or not hasattr(vlm, "PCA"):
         X = getattr(vlm, x_name) # X=(n_samples, n_features)
-        vlm.PCA = PCA(n_components=50).fit_transform(X.T)
+        vlm.PCA = PCA(n_components=25).fit_transform(X.T)
         
     
     if "PCA" in embeds:
@@ -138,15 +138,17 @@ def getImputed(vlm, knn_k=50):
     '''
 
     vlm.knn_imputation(k=knn_k)
-    vlm.normalize("imputed", size=True, log=True)
+    # vlm.normalize("imputed", size=True, log=True)
 
     #Get gamma inference
     delta_t = 1
     vlm.used_delta_t = delta_t
     vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
         
-    vlm.delta_S = vlm.Ux_sz - vlm.gammas[:,None] * vlm.Sx_sz # same as vlm.predict_U() and vlm.calculate_velocity()
+    vlm.delta_S = vlm.Ux_sz - (vlm.gammas[:,None] * vlm.Sx_sz + vlm.q[:,None]) # same as vlm.predict_U() and vlm.calculate_velocity()
     vlm.Sx_sz_t = vlm.Sx_sz + delta_t * vlm.delta_S  # same as vlm.extrapolate_cell_at_t(delta_t=1)
+    # vlm.delta_S = vlm.Ux_sz - vlm.gammas[:,None] * vlm.Sx_sz # same as vlm.predict_U() and vlm.calculate_velocity()
+    # vlm.Sx_sz_t = vlm.Sx_sz + delta_t * vlm.delta_S  # same as vlm.extrapolate_cell_at_t(delta_t=1)
 
     return
 
