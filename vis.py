@@ -142,7 +142,7 @@ def getImputed(vlm, knn_k=50):
     '''
 
     vlm.knn_imputation(k=knn_k)
-    # vlm.normalize("imputed", size=True, log=True)
+    # Ux_sz == Ux and Sx_sz == Sx in velocyto
 
     #Get gamma inference
     delta_t = 1
