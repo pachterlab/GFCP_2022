@@ -182,9 +182,11 @@ def linear_embed(vlm, True_gammas=False):
     '''
     if True_gammas:
         gammas = vlm.true_gammas
+        delta_S_sz = vlm.U_sz - (gammas[:,None] * vlm.S_sz) # same as vlm.predict_U() and vlm.calculate_velocity()
     else:
         gammas = vlm.gammas
-    delta_S_sz = vlm.U_sz - gammas[:,None] * vlm.S_sz # same as vlm.predict_U() and vlm.calculate_velocity()
+        q = vlm.q
+        delta_S_sz = vlm.U_sz - (gammas[:,None] * vlm.S_sz + q[:,None])
     mask=delta_S_sz<-1e-6
     delta_t=np.min(vlm.S_sz[mask]/np.abs(delta_S_sz[mask]))
     vlm.S_sz_t = vlm.S_sz + delta_t/2 * delta_S_sz  # same as vlm.extrapolate_cell_at_t(delta_t=1)
