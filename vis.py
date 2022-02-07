@@ -44,6 +44,10 @@ delft_hex = ("#78A8D1","#D5BF98","#E3C78F","#FDF9F8","#867D6C","#A04437","#AF736
          "#EFBF6A","#8E7C56","#CDD4E4","#8B6C4F","#B4B7B9")
 delft = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in delft_hex]
 
+staalmeester_hex = ("#A13826","#701B06","#4C3114","#7A491E","#D7E1D6","#060A0D","#D39C7B")
+staalmeester = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in delft_hex]
+
+
 cnas = vermeer[6] #nascent color
 cmat = vermeer[0] #mature color
 cbg = vermeer[4] # off-white background to make it stand out
@@ -529,28 +533,16 @@ def simulate_occup_meas(nCells=2000, nGenes=100, T=20, tau = [0,8,13], topo="ab(
             #this defines states a, b, c, d.
             kinit = 10**np.random.normal(0,size=n_K)
             K[j,:] = kinit
-            # print(kinit)
             beta = 10**np.random.normal(1,0.5)
             b_true[j]=beta
             gamma = 10**np.random.normal(0.5,0.25)
-            # gamma = 10**np.random.normal(0,0.5)
             g_true[j] = gamma
 
             try: #the simulation procedure is not necessarily stable. If it
                 #produces unreasonable samples, we resample the parameters.
                 for i in range(nCells):
-                    # print(nCells)
-                    # x0 = [kinit[0]/beta, kinit[0]/gamma]
                     X[:,i,j]= poiss_samp(get_cell_spec_K(K[j],cell_types[i]),tau,tvec[i],beta,gamma)
-                    # print(i)
-                    # if i==0:
-                    #     print(K[j,cell_types[i]])
-                    #     print(tvec[i])
             except:
-                # print(kinit)
-                # print(x0)
-                # print('big yikes')
-                # poiss_samp(get_cell_spec_K(K[j],cell_types[i]),tau,tvec[i],beta,gamma)
                 pass
             
             if ~np.any(np.isnan(X[:,:,j])):
@@ -901,7 +893,6 @@ def plotPhase(ax, vlm, gene_idx, jitter=False,s=3):
     b=vlm.q[gene_idx]
     
     x_=np.array([np.amin(x), np.amax(x)])
-    # ax.plot(x_, x_*k+b+np.random.normal(0,0.1,size=x_.shape), color=vermeer[0], linewidth=4)  # not necessary to add jitter to fit
     ax.plot(x_, x_*k+b, color=vermeer[0], linewidth=4)
     
     if jitter:
@@ -1105,7 +1096,8 @@ def princCurvePlots(ax,vlm,meta,color=False):
             blc = LineCollection(segments,colors='w')
             blc.set_linewidth(6)
             ax.add_collection(blc)
-            lc = LineCollection(segments,colors=Xtheo_c)
+            lc = LineCollection(segments,colors=staalmeester[1])
+            # lc = LineCollection(segments,colors=Xtheo_c)
             lc.set_linewidth(2)
             ax.add_collection(lc)
             
