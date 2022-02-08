@@ -130,7 +130,7 @@ def makeEmbeds(vlm, embeds, x_name="S_norm", new_pca=True):
     return
 
 
-def getImputed(vlm, knn_k=50):
+def getImputed(vlm, knn_k=50, clip = True):
     '''
     Get gamma inference from imputed counts
     
@@ -150,10 +150,9 @@ def getImputed(vlm, knn_k=50):
     vlm.fit_gammas(use_imputed_data=True, use_size_norm=False, weighted=True, weights="maxmin_diag")
         
     vlm.delta_S = vlm.Ux_sz - (vlm.gammas[:,None] * vlm.Sx_sz + vlm.q[:,None]) # same as vlm.predict_U() and vlm.calculate_velocity()
-    vlm.Sx_sz_t = vlm.Sx_sz + delta_t * vlm.delta_S  # same as vlm.extrapolate_cell_at_t(delta_t=1)
-    # vlm.delta_S = vlm.Ux_sz - vlm.gammas[:,None] * vlm.Sx_sz # same as vlm.predict_U() and vlm.calculate_velocity()
-    # vlm.Sx_sz_t = vlm.Sx_sz + delta_t * vlm.delta_S  # same as vlm.extrapolate_cell_at_t(delta_t=1)
-
+    vlm.Sx_sz_t = vlm.Sx_sz + delta_t * vlm.delta_S # same as vlm.extrapolate_cell_at_t(delta_t=1) 
+    if clip: #clip at zero
+        vlm.Sx_sz_t = np.maximum(vlm.Sx_sz_t,0) #this is consistent with velocyto but doesn't appear to ever be used.
     return
 
 
@@ -1098,14 +1097,14 @@ def princCurvePlots(ax,vlm,meta,color=False):
             blc = LineCollection(segments,colors='w')
             blc.set_linewidth(6)
             ax.add_collection(blc)
-            lc = LineCollection(segments,colors=staalmeester[0])
-            # lc = LineCollection(segments,colors=Xtheo_c)
+            # lc = LineCollection(segments,colors=staalmeester[1])
+            lc = LineCollection(segments,colors=Xtheo_c)
             lc.set_linewidth(2)
             ax.add_collection(lc)
             
         else:
             ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
-            ax.plot(Y[:,0],Y[:,1],c=staalmeester[0],lw=2, alpha=0.8)
+            ax.plot(Y[:,0],Y[:,1],c=staalmeester[1],lw=2, alpha=0.8)
 
 
 def plotJaccard(x1, x2, ax=None, n_neigh=150, c=vermeer[3]):
