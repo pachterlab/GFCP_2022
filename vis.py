@@ -579,8 +579,10 @@ def simValidPlots(vlm,tau,meta,geneind=0,knn_k=50):
     MAKE SURE THE IMPUTATION HAPPENS.
     '''
     # nCells,nGenes,T,tau,topo = meta
-    n_comps = np.where(np.diff(np.diff(np.cumsum(vlm.pca.explained_variance_ratio_))>0.005))[0][0]
-    vlm.knn_imputation(n_pca_dims=n_comps,k=knn_k, balanced=True, b_sight=np.minimum(knn_k*8, vlm.S.shape[1]-1), b_maxl=np.minimum(knn_k*4, vlm.S.shape[1]-1))
+    # n_comps = np.where(np.diff(np.diff(np.cumsum(vlm.pca.explained_variance_ratio_))>0.005))[0][0]
+    # print('Number of PCs for imputation: {:.0f}.'.format(n_comps))
+    vlm.knn_imputation(k=knn_k)
+    # vlm.knn_imputation(n_pca_dims=n_comps,k=knn_k, balanced=True, b_sight=np.minimum(knn_k*8, vlm.S.shape[1]-1), b_maxl=np.minimum(knn_k*4, vlm.S.shape[1]-1))
 
     fig=plt.figure(figsize=(20,15))
 
