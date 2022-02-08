@@ -77,6 +77,7 @@ def preprocess(vlm, nGene=2000, sim=False, meta=None, filter=True, sz_normalize=
 
     vlm.normalize("both", size=sz_normalize, log=True)
     vlm.perform_PCA(which="S_norm",n_components=25)
+    vlm.ps = vlm.pcs[:,:2]
     # vlm.pcs=vlm.pcs[:,:2]
 
     if sim:
@@ -110,19 +111,20 @@ def makeEmbeds(vlm, embeds, x_name="S_norm", new_pca=True):
     -------
     '''
     
-    if new_pca or not hasattr(vlm, "PCA"):
-        X = getattr(vlm, x_name) # X=(n_samples, n_features)
-        vlm.PCA = PCA(n_components=25).fit_transform(X.T)
+    # if new_pca or not hasattr(vlm, "PCA"):
+    #     X = getattr(vlm, x_name) # X=(n_samples, n_features)
+    #     vlm.PCA = PCA(n_components=25).fit_transform(X.T)
         
     
     if "PCA" in embeds:
-        vlm.ps = np.array(vlm.PCA[:,:2], order="C")
+        vlm.ps = vlm.pcs[:,:2] #not strictly necessary
+        # vlm.ps = np.array(vlm.PCA[:,:2], order="C")
         
     if 'UMAP' in embeds:
-        vlm.us = umap.UMAP(n_components=2).fit_transform(vlm.PCA[:, :25])
+        vlm.us = umap.UMAP(n_components=2).fit_transform(vlm.pcs[:, :25])
         
     if 'tSNE' in embeds:
-        vlm.ts = TSNE(n_components=2).fit_transform(vlm.PCA[:, :25])
+        vlm.ts = TSNE(n_components=2).fit_transform(vlm.pcs[:, :25])
 
     if "default" in embeds:
         vlm.perform_PCA(which=x_name) # default add attr pca and pcs
@@ -190,16 +192,16 @@ def linear_embed(vlm, True_gammas=False):
         gammas = vlm.gammas
         q = vlm.q
         delta_S_sz = vlm.U_sz - (gammas[:,None] * vlm.S_sz + q[:,None])
-    mask=delta_S_sz<-1e-6
+    # mask=delta_S_sz<-1e-6
+    mask = np.logical_and(delta_S_sz<-1e-6 , vlm.S_sz>1e-6)
     delta_t=np.min(vlm.S_sz[mask]/np.abs(delta_S_sz[mask]))
-    vlm.S_sz_t = vlm.S_sz + delta_t/2 * delta_S_sz  # same as vlm.extrapolate_cell_at_t(delta_t=1)
+    vlm.S_sz_t = vlm.S_sz + delta_t * delta_S_sz  # same as vlm.extrapolate_cell_at_t(delta_t=1)
     v=vlm.pca.transform(np.log2(vlm.S_sz_t.T+1))[:,:2]-vlm.pcs[:,:2]
     return v
 
 def SimArrowPlots(vlm,meta=None,ax=None,quiver_scale=5):
     if ax==None:
         fig, ax = plt.subplots(2,2,figsize=(12,8))
-        
     plotEmbed(ax,vlm,emb)
         
     
@@ -1159,7 +1161,7 @@ def angleDevPlots(vlm,Trans,n_neighs):
 
     for j, k in enumerate(n_neighs):
         for i,trans in enumerate(Trans):
-            vlm.estimate_transition_prob(hidim="Sx_sz", embed="pcs", transform=trans,
+            vlm.estimate_transition_prob(hidim="Sx_sz", embed="ps", transform=trans,
                                           n_neighbors=k, knn_random=False, sampled_fraction=1)
             if np.count_nonzero(np.isnan(vlm.corrcoef))>0:
                 warnings.warn("Nan values in corrcoef, setting them to 0")
