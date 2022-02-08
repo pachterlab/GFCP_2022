@@ -45,7 +45,7 @@ delft_hex = ("#78A8D1","#D5BF98","#E3C78F","#FDF9F8","#867D6C","#A04437","#AF736
 delft = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in delft_hex]
 
 staalmeester_hex = ("#A13826","#701B06","#4C3114","#7A491E","#D7E1D6","#060A0D","#D39C7B")
-staalmeester = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in delft_hex]
+staalmeester = [(tuple(int(h.lstrip('#')[i:i+2], 16)/255 for i in (0, 2, 4))) for h in staalmeester_hex]
 
 
 cnas = vermeer[6] #nascent color
@@ -1096,14 +1096,14 @@ def princCurvePlots(ax,vlm,meta,color=False):
             blc = LineCollection(segments,colors='w')
             blc.set_linewidth(6)
             ax.add_collection(blc)
-            lc = LineCollection(segments,colors=staalmeester[1])
+            lc = LineCollection(segments,colors=staalmeester[0])
             # lc = LineCollection(segments,colors=Xtheo_c)
             lc.set_linewidth(2)
             ax.add_collection(lc)
             
         else:
             ax.plot(Y[:,0],Y[:,1],c='w',lw=6)
-            ax.plot(Y[:,0],Y[:,1],c='k',lw=2, alpha=0.8)
+            ax.plot(Y[:,0],Y[:,1],c=staalmeester[0],lw=2, alpha=0.8)
 
 
 def plotJaccard(x1, x2, ax=None, n_neigh=150, c=vermeer[3]):
