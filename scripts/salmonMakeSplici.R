@@ -1,3 +1,5 @@
+#All analysis/processing with alevin-fry follow this tutorial https://combine-lab.github.io/alevin-fry-tutorials/2021/alevin-fry-velocity/
+
 suppressPackageStartupMessages({
   library(eisaR)
   library(Biostrings)
