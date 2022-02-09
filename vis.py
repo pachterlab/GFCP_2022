@@ -158,7 +158,7 @@ def getImputed(vlm, knn_k=50, clip = True):
     return
 
 
-def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
+def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray",alpha=1):
     '''
     Plot grid with arrows given embedding
     
@@ -171,7 +171,7 @@ def plotGrid(ax,vlm,gridx,gridv,trans, scale=5, c="gray"):
     x=getattr(vlm, gridx)
     v=getattr(vlm, gridv)
     masks=vlm.total_p_mass>0.1
-    ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, color=c)
+    ax.quiver(x[masks, 0], x[masks, 1], v[masks, 0], v[masks, 1], linewidth=6.5, scale=scale, label=trans, color=c,alpha=alpha)
     return
 
 def linear_embed(vlm, True_gammas=False):
@@ -246,7 +246,7 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
         vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
         vlm.calculate_grid_arrows(smooth=0.5, steps=steps, n_neighbors=n_neighbors)
 
-        plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10],alpha=0.9)
+        plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10],alpha=1-0.1*i)
     
     # plot baseline arrows or curves
     if embed=="PCA":
