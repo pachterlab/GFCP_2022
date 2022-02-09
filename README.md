@@ -19,4 +19,4 @@ The `scripts` directory contains the bash, Python, and R scripts used to generat
 
 The `figure` directory contains up-to-date figures for the manuscript.
 
-The raw data for the `paired_dataset_comparison` notebook are available at [the CaltechData repository](https://data.caltech.edu/records/20030). The human forebrain dataset generated was obtained from [this server](http://pklab.med.harvard.edu/velocyto/hgForebrainGlut/hgForebrainGlut.loom), as in the [`velocyto` tutorials](https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb).
+The raw data for the `paired_dataset_comparison` notebook are available at [the CaltechData repository](https://data.caltech.edu/records/20030). The human forebrain dataset generated was obtained from [this server](http://pklab.med.harvard.edu/velocyto/hgForebrainGlut/hgForebrainGlut.loom), as in the [`velocyto` tutorials](https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb); we rehost it in `notebooks/data`.
