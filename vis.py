@@ -231,6 +231,10 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
         
     plotEmbed(ax,vlm,emb,sim=sim)
     
+    if embed=='PCA' and plot_baseline:
+        v=linear_embed(vlm)
+        ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.3, linewidth=3, scale=quiver_scale/2, label="baseline")
+
     for i,trans in enumerate(Trans):
         vlm.estimate_transition_prob(hidim="Sx_sz", embed=emb, transform=trans,
                                 n_neighbors=150, knn_random=False, sampled_fraction=1)
@@ -248,9 +252,6 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
     if embed=="PCA":
         if sim:
             princCurvePlots(ax,vlm,meta,color=False)
-        if plot_baseline:
-            v=linear_embed(vlm)
-            ax.quiver(vlm.pcs[:,0], vlm.pcs[:,1], v[:, 0], v[:, 1], alpha=0.3, linewidth=3, scale=quiver_scale/2, label="baseline")
    
     if legend:
         ax.legend(bbox_to_anchor=(1.05, 1.0))
