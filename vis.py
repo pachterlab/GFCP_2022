@@ -196,6 +196,8 @@ def linear_embed(vlm, True_gammas=False):
     mask = np.logical_and(delta_S_sz<-1e-6 , vlm.S_sz>1e-6)
     delta_t=np.min(vlm.S_sz[mask]/np.abs(delta_S_sz[mask]))
     vlm.S_sz_t = vlm.S_sz + delta_t * delta_S_sz  # same as vlm.extrapolate_cell_at_t(delta_t=1)
+    mask_2 = np.logical_and(delta_S_sz<-1e-6 , vlm.S_sz<1e-6)
+    vlm.S_sz_t[mask_2] = vlm.S_sz[mask_2]
     v=vlm.pca.transform(np.log2(vlm.S_sz_t.T+1))[:,:2]-vlm.pcs[:,:2]
     return v
 
