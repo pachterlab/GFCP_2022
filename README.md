@@ -1,5 +1,5 @@
 # GFCP_2021
-This directory contains scripts to generate all figures in the preprint "RNA velocity unraveled" by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
+This directory contains scripts to generate all figures in the manuscript "RNA velocity unraveled" by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
 
 The `notebooks` directory contains the notebooks that generate the figures: 
 * Figure 1: `vcy_scvelo_comparison.ipynb`
@@ -14,3 +14,7 @@ The `notebooks` directory contains the notebooks that generate the figures:
 * Figure S4: `embed_neighbors_transf_lme.ipynb`
 * Figure S5: `occup_meas_sim_nonorm.ipynb`
 * Figures S6-7: `burst_false_positives.ipynb`
+
+The `scripts` directory contains the bash, Python, and R scripts used to generate `kallisto|bustools`, `velocyto`, and `salmon` spliced and unspliced molecule count matrices in the `loom` format.
+
+The `figure` directory contains up-to-date figures for the manuscript.
