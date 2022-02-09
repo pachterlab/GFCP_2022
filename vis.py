@@ -242,7 +242,7 @@ def gridArrowPlots(vlm,Trans,embed,sim=False,meta=None,ax=None,legend=True,quive
         vlm.calculate_embedding_shift(sigma_corr = 0.05, expression_scaling=False)
         vlm.calculate_grid_arrows(smooth=0.5, steps=steps, n_neighbors=n_neighbors)
 
-        plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10])
+        plotGrid(ax,vlm,"flow_grid","flow", trans, scale=quiver_scale, c=vermeer[(7+i) % 10],alpha=0.9)
     
     # plot baseline arrows or curves
     if embed=="PCA":
