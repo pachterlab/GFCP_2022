@@ -363,7 +363,8 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
     X = np.zeros((2,nCells,nGenes))
 
     n_cells_per_type = nCells//n_cell_types
-    g_true = np.zeros(nGenes) #deg rate
+    g_true = np.zeros((nGenes,n_cell_types)) #deg rate
+    # g_true = np.zeros(nGenes) #deg rate
     b_true = np.zeros(nGenes) #burst size
 
     cell_types = np.zeros(nCells)
@@ -371,16 +372,20 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
     K = np.zeros((nGenes,n_cell_types))
     for j in range(nGenes):
         beta = 1
-        b = np.clip(10**np.random.normal(1,0.8),0.05,25)
+        b = np.clip(10**np.random.normal(0.3,0.8),0.05,25)
         b_true[j] = b
-        gamma = 10**np.clip(np.random.normal(-0.3,0.5),0.08,4)
-        g_true[j] = gamma
+        # gamma = 10**np.clip(np.random.normal(-0.3,0.5),0.08,4)
+        # g_true[j] = gamma
+        gamma_mean = np.random.normal(-0.3,0.3)
 
         for i in range(n_cell_types):
             FLAG = True
+
             while FLAG:
-                kini = np.clip(10**np.random.normal(-0.5,0.5),0.01,5)
+                kini = np.clip(10**np.random.normal(-1,0.5),0.005,1)
                 K[j,i] = kini
+                gamma = np.clip(10**np.random.normal(gamma_mean,0.1),0.08,4)
+                g_true[j,i] = gamma
 
 
                 if (i+1)<n_cell_types:
@@ -408,7 +413,7 @@ def simulate_burst_model(nCells=2000, nGenes=100, T=20, n_cell_types=10, seed=42
 
             if j==0:
                 cell_types[IND] = i
-    return X,cell_types,cell_types,K,g_true,b_true
+    return X,cell_types,cell_types,K,g_true[:,0],b_true
 
 def cme_integrator(p,lm,method='fixed_quad',fixed_quad_T=10,quad_order=60,quad_vec_T=np.inf):
     kini,b,bet,gam = p
