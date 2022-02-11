@@ -1,5 +1,5 @@
-# GFCP_2021
-This directory contains scripts to generate all figures in the manuscript "RNA velocity unraveled" by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
+# RNA velocity unraveled
+This directory contains scripts and code to generate all the figures in the manuscript "RNA velocity unraveled" by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
 
 The `notebooks` directory contains the notebooks that generate the figures: 
 * Figure 1: `vcy_scvelo_comparison.ipynb`
