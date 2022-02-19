@@ -1,5 +1,5 @@
 # RNA velocity unraveled
-This directory contains scripts and code to generate all the figures in the manuscript "RNA velocity unraveled" by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
+This directory contains scripts and code to generate all the figures in the manuscript ["RNA velocity unraveled"](https://www.biorxiv.org/content/10.1101/2022.02.12.480214v1) by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
 
 The `notebooks` directory contains the notebooks that generate the figures: 
 * Figure 1: `vcy_scvelo_comparison.ipynb`
