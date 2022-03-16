@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6360950.svg)](https://doi.org/10.5281/zenodo.6360950)
 # RNA velocity unraveled
 This directory contains scripts and code to generate all the figures in the manuscript ["RNA velocity unraveled"](https://www.biorxiv.org/content/10.1101/2022.02.12.480214v1) by Gennady Gorin, Meichen Fang, Tara Chari, and Lior Pachter.
 
@@ -6,9 +7,10 @@ The `notebooks` directory contains the notebooks that generate the figures:
 * Figure 5: `phaseplots_lme.ipynb`
 * Figure 6: `embed_neighbors_jaccard_lme.ipynb`
 * Figure 7: `embed_stability_lme.ipynb`
-* Figure 8: `occup_meas_sim.ipynb`
-* Figure 9: `aba_sim.ipynb`
-* Figure 10: `embed_stability_sim.ipynb`
+* Figure 8: `abcd_sim.ipynb`
+* Figure 9: `occup_meas_sim.ipynb`
+* Figure 10: `aba_sim.ipynb`
+* Figure 11: `embed_stability_sim.ipynb`
 * Figure S1: `abcde_sim.ipynb`
 * Figure S3: `paired_dataset_comparison.ipynb`
 * Figure S4: `embed_neighbors_transf_lme.ipynb`
